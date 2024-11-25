@@ -41,7 +41,7 @@ const state = {
 };
 
 // YouTube плеер
-const YOUTUBE_PLAYLIST_ID = 'PL_xXZCm82ZkkBFLMXXEAymQO7QD3XYLqU'; // Медитативная музыка
+const YOUTUBE_PLAYLIST_ID = 'PLstkrDtqpxiIWWU4ctz1Hg_U_XpUo5zr4'; // Медитативная музыка
 let player;
 let isPlaying = false;
 
