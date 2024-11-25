@@ -1,6 +1,15 @@
 let tg = window.Telegram.WebApp;
 tg.expand();
 
+// Функция для добавления поддержки touch-событий
+function addTouchSupport(element, callback) {
+    element.addEventListener('click', callback);
+    element.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        callback(e);
+    }, { passive: false });
+}
+
 // Состояние приложения
 const state = {
     isBreathing: false,
@@ -32,7 +41,7 @@ const state = {
 };
 
 // YouTube плеер
-const YOUTUBE_PLAYLIST_ID = 'PLstkrDtqpxiIWWU4ctz1Hg_U_XpUo5zr4'; // Медитативная музыка
+const YOUTUBE_PLAYLIST_ID = 'PLRBp0Fe2GpglkzuspoGv-mu7B2ce9_0Fn'; // Медитативная музыка
 let player;
 let isPlaying = false;
 
@@ -61,7 +70,7 @@ function onYouTubeIframeAPIReady() {
 
 function onPlayerReady(event) {
     const musicControl = document.getElementById('musicControl');
-    musicControl.addEventListener('click', toggleMusic);
+    addTouchSupport(musicControl, toggleMusic);
 }
 
 function onPlayerStateChange(event) {
@@ -109,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const increaseButton = document.getElementById('increaseRounds');
 
     if (decreaseButton && increaseButton) {
-        decreaseButton.addEventListener('click', () => {
+        addTouchSupport(decreaseButton, () => {
             if (state.rounds.total > 1) {
                 state.rounds.total--;
                 updateRoundsDisplay();
@@ -117,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        increaseButton.addEventListener('click', () => {
+        addTouchSupport(increaseButton, () => {
             if (state.rounds.total < 10) {
                 state.rounds.total++;
                 updateRoundsDisplay();
@@ -127,11 +136,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Обработчик для круга дыхания
-    elements.breathCircle.addEventListener('click', handleBreathCircleClick);
+    addTouchSupport(elements.breathCircle, handleBreathCircleClick);
 
     // Обработчики для вкладок статистики
     document.querySelectorAll('.stats-tab').forEach(tab => {
-        tab.addEventListener('click', handleStatsTabClick);
+        addTouchSupport(tab, (e) => handleStatsTabClick(e));
     });
 
     // Загрузка сохраненных данных при старте
@@ -421,6 +430,17 @@ function loadUserData() {
             const data = JSON.parse(savedData);
             state.stats = data.stats;
             state.rounds.total = data.rounds.total;
+            
+            // Проверка и сброс дневной статистики
+            const today = new Date().toDateString();
+            if (state.stats.allTime.lastPractice !== today) {
+                state.stats.today = {
+                    sessions: 0,
+                    bestTime: 0,
+                    times: []
+                };
+            }
+            
             updateRoundsDisplay();
         }
     }
