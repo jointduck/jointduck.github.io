@@ -3,29 +3,84 @@ tg.expand();
 
 // Состояние приложения
 const state = {
-    // Добавляем в начало файла после объявления state
-const YOUTUBE_VIDEOS = [
-    { 
-        id: 'tybOi4hjZFQ', // Замените на реальные ID видео
-        duration: 3600 // Длительность видео в секундах
-    },
-    { 
-        id: 'L-jwwZOAbDo',
-        duration: 3600
-    },
-    { 
-        id: '5qap5aO4i9A',
-        duration: 3600
-    },
-    { 
-        id: 'DWcJFNfaw9c',
-        duration: 3600
-    },
-    { 
-        id: 'lTRiuFIWV54',
-        duration: 3600
+    // Заменяем массив видео на ID плейлиста
+const YOUTUBE_PLAYLIST_ID = 'PLstkrDtqpxiIWWU4ctz1Hg_U_XpUo5zr4'; // Это пример ID плейлиста
+
+let player;
+let isPlaying = false;
+
+// Инициализация YouTube Player API
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player('youtubePlayer', {
+        height: '0',
+        width: '0',
+        playerVars: {
+            'autoplay': 0,
+            'controls': 0,
+            'disablekb': 1,
+            'fs': 0,
+            'modestbranding': 1,
+            'playsinline': 1,
+            'listType': 'playlist',
+            'list': YOUTUBE_PLAYLIST_ID,
+            'shuffle': 1 // Включаем случайный порядок
+        },
+        events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange
+        }
+    });
+}
+
+function onPlayerReady(event) {
+    const musicControl = document.getElementById('musicControl');
+    musicControl.addEventListener('click', toggleMusic);
+}
+
+function onPlayerStateChange(event) {
+    const musicControl = document.getElementById('musicControl');
+    
+    if (event.data === YT.PlayerState.PLAYING) {
+        musicControl.classList.add('playing');
+        musicControl.innerHTML = '⏸';
+        isPlaying = true;
+    } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+        musicControl.classList.remove('playing');
+        musicControl.innerHTML = '🎵';
+        isPlaying = false;
     }
-];
+}
+
+function toggleMusic() {
+    if (!isPlaying) {
+        player.playVideo();
+        if (player.getPlayerState() === YT.PlayerState.CUED) {
+            player.setShuffle(true); // Включаем случайный порядок
+            player.playVideoAt(Math.floor(Math.random() * player.getPlaylist().length));
+        }
+    } else {
+        player.pauseVideo();
+    }
+}
+
+// Добавляем функцию для остановки музыки при завершении сессии
+function finishSession() {
+    // Существующий код finishSession...
+
+    if (isPlaying) {
+        player.pauseVideo();
+    }
+}
+
+// Добавляем автоматическое включение музыки при начале сессии
+function startBreathingSession() {
+    // Существующий код startBreathingSession...
+
+    if (!isPlaying) {
+        toggleMusic();
+    }
+}
+    
     isBreathing: false,
     currentPhase: 'idle', // idle, breathing, holding, recovery
     rounds: {
