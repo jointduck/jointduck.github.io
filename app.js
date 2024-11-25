@@ -3,6 +3,91 @@ tg.expand();
 
 // Состояние приложения
 const state = {
+    // Добавляем в начало файла после объявления state
+const YOUTUBE_VIDEOS = [
+    { id: 'tybOi4hjZFQ', duration: 2700 }, // Пример видео 1
+    { id: 'L-jwwZOAbDo', duration: 3600 }, // Пример видео 2
+    // Добавьте больше видео по желанию
+];
+
+let player;
+let isPlaying = false;
+
+// Инициализация YouTube Player API
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player('youtubePlayer', {
+        height: '0',
+        width: '0',
+        videoId: YOUTUBE_VIDEOS[0].id,
+        playerVars: {
+            'autoplay': 0,
+            'controls': 0,
+            'disablekb': 1,
+            'fs': 0,
+            'modestbranding': 1,
+            'playsinline': 1
+        },
+        events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange
+        }
+    });
+}
+
+function onPlayerReady(event) {
+    const musicControl = document.getElementById('musicControl');
+    musicControl.addEventListener('click', toggleMusic);
+}
+
+function onPlayerStateChange(event) {
+    if (event.data === YT.PlayerState.ENDED) {
+        playRandomVideo();
+    }
+}
+
+function toggleMusic() {
+    const musicControl = document.getElementById('musicControl');
+    if (!isPlaying) {
+        playRandomVideo();
+        musicControl.classList.add('playing');
+        musicControl.innerHTML = '⏸';
+    } else {
+        player.pauseVideo();
+        musicControl.classList.remove('playing');
+        musicControl.innerHTML = '🎵';
+    }
+    isPlaying = !isPlaying;
+}
+
+function playRandomVideo() {
+    const videoData = YOUTUBE_VIDEOS[Math.floor(Math.random() * YOUTUBE_VIDEOS.length)];
+    const randomTime = Math.floor(Math.random() * (videoData.duration - 300)); // -300 секунд чтобы не начинать с конца
+    
+    player.loadVideoById({
+        videoId: videoData.id,
+        startSeconds: randomTime
+    });
+}
+
+// Добавляем функцию для остановки музыки при завершении сессии
+function finishSession() {
+    // Существующий код finishSession...
+
+    // Добавляем остановку музыки
+    if (isPlaying) {
+        toggleMusic();
+    }
+}
+
+// Добавляем автоматическое включение музыки при начале сессии
+function startBreathingSession() {
+    // Существующий код startBreathingSession...
+
+    // Добавляем включение музыки, если она еще не играет
+    if (!isPlaying) {
+        toggleMusic();
+    }
+}
     isBreathing: false,
     currentPhase: 'idle', // idle, breathing, holding, recovery
     rounds: {
@@ -51,16 +136,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (decreaseButton && increaseButton) {
         decreaseButton.addEventListener('click', () => {
-            if (state.rounds.total > 1) {
-                state.rounds.total--;
+            if (.rounds.total > 1) {
+                .rounds.total--;
                 updateRoundsDisplay();
                 saveUserData();
             }
         });
 
         increaseButton.addEventListener('click', () => {
-            if (state.rounds.total < 10) {
-                state.rounds.total++;
+            if (.rounds.total < 10) {
+                .rounds.total++;
                 updateRoundsDisplay();
                 saveUserData();
             }
@@ -83,18 +168,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Обработчик нажатия на круг
 function handleBreathCircleClick() {
-    if (state.currentPhase === 'idle') {
+    if (.currentPhase === 'idle') {
         startBreathingSession();
-    } else if (state.currentPhase === 'holding') {
+    } else if (.currentPhase === 'holding') {
         finishHoldingPhase();
     }
 }
 
 // Начало сессии дыхания
 function startBreathingSession() {
-    state.currentPhase = 'breathing';
-    state.rounds.current++;
-    state.rounds.breathCount = 0;
+    .currentPhase = 'breathing';
+    .rounds.current++;
+    .rounds.breathCount = 0;
     startBreathingCycle();
     updateRoundsDisplay();
 }
