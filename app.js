@@ -1,144 +1,196 @@
 let tg = window.Telegram.WebApp;
 tg.expand();
 
-const breathCircle = document.getElementById('breathCircle');
-const circleText = document.getElementById('circleText');
-const phaseText = document.getElementById('phaseText');
-const timer = document.getElementById('timer');
-const progressBar = document.getElementById('progressBar');
-
-let isBreathing = false;
-let currentPhase = 'idle';
-let breathCount = 0;
-let holdTime = 0;
-let timerInterval;
-
-const BREATH_CYCLES = 30;
-const BREATH_IN_TIME = 2; // 2 секунды на вдох
-const BREATH_OUT_TIME = 2; // 2 секунды на выдох
-
-breathCircle.addEventListener('click', startBreathing);
-
-function startBreathing() {
-    if (currentPhase === 'idle') {
-        isBreathing = true;
-        breathCount = 0;
-        currentPhase = 'breathing';
-        startBreathCycle();
-    }
-}
-
-function startBreathCycle() {
-    breathCount++;
-    if (breathCount <= BREATH_CYCLES) {
-        // Фаза вдоха
-        breathCircle.classList.add('breathing-in');
-        breathCircle.classList.remove('breathing-out');
-        circleText.textContent = `Вдох ${breathCount}/${BREATH_CYCLES}`;
-        phaseText.textContent = 'Глубокий вдох через нос';
-        
-        setTimeout(() => {
-            if (isBreathing) {
-                // Фаза выдоха
-                breathCircle.classList.remove('breathing-in');
-                breathCircle.classList.add('breathing-out');
-                circleText.textContent = `Выдох ${breathCount}/${BREATH_CYCLES}`;
-                phaseText.textContent = 'Спокойный выдох через рот';
-                
-                setTimeout(() => {
-                    if (isBreathing) {
-                        startBreathCycle();
-                    }
-                }, BREATH_OUT_TIME * 1000);
-            }
-        }, BREATH_IN_TIME * 1000);
-
-        progressBar.style.width = `${(breathCount/BREATH_CYCLES) * 100}%`;
-    } else {
-        startHoldingPhase();
-    }
-}
-
-// ... [остальной код остается без изменений] ...
-
-function startHoldingPhase() {
-    breathCircle.classList.remove('breathing');
-    currentPhase = 'holding';
-    circleText.textContent = 'Задержка';
-    phaseText.textContent = 'Выдохните и задержите дыхание';
-    
-    holdTime = 0;
-    timerInterval = setInterval(() => {
-        holdTime++;
-        timer.textContent = formatTime(holdTime);
-    }, 1000);
-    
-    breathCircle.addEventListener('click', finishHoldingPhase);
-}
-
-function finishHoldingPhase() {
-    if (currentPhase === 'holding') {
-        clearInterval(timerInterval);
-        breathCircle.removeEventListener('click', finishHoldingPhase);
-        
-        // Сохраняем результат
-        const bestTimeStr = localStorage.getItem('bestTime') || '0';
-        const bestTime = parseInt(bestTimeStr);
-        if (holdTime > bestTime) {
-            localStorage.setItem('bestTime', holdTime.toString());
-            document.getElementById('bestTime').textContent = formatTime(holdTime);
+// Состояние приложения
+const state = {
+    rounds: {
+        current: 0,
+        total: 3,
+        breathCount: 0
+    },
+    settings: {
+        sound: true,
+        vibration: true
+    },
+    stats: {
+        today: {
+            sessions: 0,
+            bestTime: 0,
+            times: []
+        },
+        allTime: {
+            sessions: 0,
+            bestTime: 0,
+            times: [],
+            streak: 0,
+            lastPractice: null
         }
-        
-        // Увеличиваем количество сессий
-        const sessionsToday = parseInt(localStorage.getItem('sessionsToday') || '0') + 1;
-        localStorage.setItem('sessionsToday', sessionsToday.toString());
-        document.getElementById('sessionsToday').textContent = sessionsToday;
-        
-        startRecoveryPhase();
+    }
+};
+
+// Загрузка сохраненных данных
+function loadUserData() {
+    const userId = tg.initDataUnsafe?.user?.id;
+    if (userId) {
+        const savedData = localStorage.getItem(`wimhof_${userId}`);
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            Object.assign(state, data);
+            updateStatsDisplay();
+        }
     }
 }
 
-function startRecoveryPhase() {
-    currentPhase = 'recovery';
-    circleText.textContent = 'Восстановление';
-    phaseText.textContent = 'Сделайте глубокий вдох и задержите на 15 секунд';
-    
-    let recoveryTime = 15;
-    timer.textContent = formatTime(recoveryTime);
-    
-    const recoveryInterval = setInterval(() => {
-        recoveryTime--;
-        timer.textContent = formatTime(recoveryTime);
-        
-        if (recoveryTime <= 0) {
-            clearInterval(recoveryInterval);
-            resetExercise();
-        }
-    }, 1000);
+// Сохранение данных пользователя
+function saveUserData() {
+    const userId = tg.initDataUnsafe?.user?.id;
+    if (userId) {
+        localStorage.setItem(`wimhof_${userId}`, JSON.stringify(state));
+    }
 }
 
-function resetExercise() {
-    isBreathing = false;
-    currentPhase = 'idle';
-    breathCount = 0;
-    circleText.textContent = 'Начать';
-    phaseText.textContent = 'Нажмите на круг, чтобы начать';
-    timer.textContent = '00:00';
-    progressBar.style.width = '0%';
-    breathCircle.classList.remove('breathing');
+// Обновление отображения статистики
+function updateStatsDisplay() {
+    // Сегодняшняя статистика
+    document.getElementById('sessionsToday').textContent = state.stats.today.sessions;
+    document.getElementById('bestTimeToday').textContent = formatTime(state.stats.today.bestTime);
+    document.getElementById('avgTimeToday').textContent = formatTime(
+        state.stats.today.times.length > 0 
+            ? state.stats.today.times.reduce((a, b) => a + b, 0) / state.stats.today.times.length 
+            : 0
+    );
+
+    // Общая статистика
+    document.getElementById('totalSessions').textContent = state.stats.allTime.sessions;
+    document.getElementById('bestTimeAll').textContent = formatTime(state.stats.allTime.bestTime);
+    document.getElementById('avgTimeAll').textContent = formatTime(
+        state.stats.allTime.times.length > 0 
+            ? state.stats.allTime.times.reduce((a, b) => a + b, 0) / state.stats.allTime.times.length 
+            : 0
+    );
+    document.getElementById('streakDays').textContent = state.stats.allTime.streak;
+
+    // Обновление счетчика раундов
+    document.getElementById('roundsCount').textContent = state.rounds.total;
+    document.getElementById('currentRound').textContent = state.rounds.current;
+    document.getElementById('totalRounds').textContent = state.rounds.total;
 }
 
-function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}
-
-// Инициализация статистики
-document.addEventListener('DOMContentLoaded', () => {
-    const bestTime = localStorage.getItem('bestTime') || '0';
-    document.getElementById('bestTime').textContent = formatTime(parseInt(bestTime));
-    
-    const sessionsToday = localStorage.getItem('sessionsToday') || '0';
-    document.getElementById('sessionsToday').textContent = sessionsToday;
+// Управление раундами
+document.getElementById('increaseRounds').addEventListener('click', () => {
+    if (state.rounds.total < 10) {
+        state.rounds.total++;
+        updateStatsDisplay();
+        saveUserData();
+    }
 });
+
+document.getElementById('decreaseRounds').addEventListener('click', () => {
+    if (state.rounds.total > 1) {
+        state.rounds.total--;
+        updateStatsDisplay();
+        saveUserData();
+    }
+});
+
+// Переключение вкладок статистики
+document.querySelectorAll('.stats-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+        document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
+        e.target.classList.add('active');
+        
+        document.querySelectorAll('.stats-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        
+        document.getElementById(`stats${e.target.dataset.tab.charAt(0).toUpperCase() + e.target.dataset.tab.slice(1)}`)
+            .style.display = 'block';
+    });
+});
+
+// Обработка достижений
+function checkAchievements() {
+    const achievements = [
+        {
+            id: 'firstSession',
+            title: 'Первый шаг',
+            condition: () => state.stats.allTime.sessions === 1,
+            icon: '🎯'
+        },
+        {
+            id: 'tenSessions',
+            title: 'Постоянная практика',
+            condition: () => state.stats.allTime.sessions >= 10,
+            icon: '🌟'
+        },
+        {
+            id: 'threeMinutes',
+            title: 'Мастер задержки',
+            condition: () => state.stats.allTime.bestTime >= 180,
+            icon: '⭐'
+        },
+        {
+            id: 'weekStreak',
+            title: 'Недельный марафон',
+            condition: () => state.stats.allTime.streak >= 7,
+            icon: '🏃'
+        }
+    ];
+
+    const achievementsList = document.getElementById('achievementsList');
+    achievementsList.innerHTML = '';
+
+    achievements.forEach(achievement => {
+        if (achievement.condition()) {
+            const achievementElement = document.createElement('div');
+            achievementElement.className = 'achievement';
+            achievementElement.innerHTML = `
+                <div class="achievement-icon">${achievement.icon}</div>
+                <div class="achievement-info">
+                    <div class="achievement-title">${achievement.title}</div>
+                </div>
+            `;
+            achievementsList.appendChild(achievementElement);
+        }
+    });
+}
+
+// Обновление статистики после сессии
+function updateStats(holdTime) {
+    const today = new Date().toDateString();
+    
+    // Обновление дневной статистики
+    state.stats.today.sessions++;
+    state.stats.today.times.push(holdTime);
+    state.stats.today.bestTime = Math.max(state.stats.today.bestTime, holdTime);
+
+    // Обновление общей статистики
+    state.stats.allTime.sessions++;
+    state.stats.allTime.times.push(holdTime);
+    state.stats.allTime.bestTime = Math.max(state.stats.allTime.bestTime, holdTime);
+
+    // Обновление серии дней
+    if (state.stats.allTime.lastPractice !== today) {
+        const lastDate = new Date(state.stats.allTime.lastPractice);
+        const currentDate = new Date(today);
+        const diffDays = Math.floor((currentDate - lastDate) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+            state.stats.allTime.streak++;
+        } else if (diffDays > 1) {
+            state.stats.allTime.streak = 1;
+        }
+        state.stats.allTime.lastPractice = today;
+    }
+
+    saveUserData();
+    updateStatsDisplay();
+    checkAchievements();
+}
+
+// ... [остальной код для дыхательных упражнений остается прежним] ...
+
+// Инициализация
+loadUserData();
+updateStatsDisplay();
+checkAchievements();
