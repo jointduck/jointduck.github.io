@@ -1,381 +1,52 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вим Хоф Дыхание</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://www.youtube.com/iframe_api"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: var(--tg-theme-bg-color, #fff);
-            color: var(--tg-theme-text-color, #000);
-            padding: 20px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        }
+// Добавьте эту функцию в начало файла app.js
+function addTouchSupport(element, callback) {
+    element.addEventListener('click', callback);
+    element.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        callback(e);
+    }, { passive: false });
+}
 
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            position: relative;
-        }
+// Замените существующую инициализацию обработчиков событий в DOMContentLoaded:
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработчики для кнопок раундов
+    const decreaseButton = document.getElementById('decreaseRounds');
+    const increaseButton = document.getElementById('increaseRounds');
 
-        .breath-circle-container {
-            width: 100%;
-            height: 240px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 20px 0;
-            position: relative;
-        }
+    if (decreaseButton && increaseButton) {
+        addTouchSupport(decreaseButton, () => {
+            if (state.rounds.total > 1) {
+                state.rounds.total--;
+                updateRoundsDisplay();
+                saveUserData();
+            }
+        });
 
-        .breath-circle {
-            width: 200px;
-            height: 200px;
-            border-radius: 50%;
-            background: var(--tg-theme-button-color, #3390ec);
-            display: flex !important;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-        }
+        addTouchSupport(increaseButton, () => {
+            if (state.rounds.total < 10) {
+                state.rounds.total++;
+                updateRoundsDisplay();
+                saveUserData();
+            }
+        });
+    }
 
-        .breath-circle:active {
-            transform: translateX(-50%) scale(0.95);
-        }
+    // Обработчик для круга дыхания
+    addTouchSupport(elements.breathCircle, handleBreathCircleClick);
 
-        .breathing-in {
-            animation: breatheIn 2s ease-in-out;
-            background: var(--tg-theme-button-color, #3390ec) !important;
-        }
-        
-        .breathing-out {
-            animation: breatheOut 2s ease-in-out;
-            background: #dc3545 !important;
-        }
-        
-        @keyframes breatheIn {
-            0% { transform: translateX(-50%) scale(1); }
-            100% { transform: translateX(-50%) scale(1.5); }
-        }
-        
-        @keyframes breatheOut {
-            0% { transform: translateX(-50%) scale(1.5); }
-            100% { transform: translateX(-50%) scale(1); }
-        }
+    // Обработчики для вкладок статистики
+    document.querySelectorAll('.stats-tab').forEach(tab => {
+        addTouchSupport(tab, (e) => handleStatsTabClick(e));
+    });
 
-        .settings-panel {
-            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-        }
+    // Обработчик для кнопки музыки
+    const musicControl = document.getElementById('musicControl');
+    if (musicControl) {
+        addTouchSupport(musicControl, toggleMusic);
+    }
 
-        .round-selector {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 15px 0;
-            gap: 20px;
-        }
-
-        .round-selector button {
-            width: 40px;
-            height: 40px;
-            background: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            border-radius: 50%;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s ease;
-        }
-
-        .round-selector button:active {
-            transform: scale(0.95);
-        }
-
-        .round-selector span {
-            font-size: 24px;
-            font-weight: bold;
-            min-width: 40px;
-            text-align: center;
-        }
-
-        .round-info {
-            text-align: center;
-            margin-top: 10px;
-            font-size: 16px;
-        }
-
-        .phase-text {
-            font-size: 20px;
-            margin: 20px 0;
-            text-align: center;
-            padding: 15px;
-            border-radius: 8px;
-            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-        }
-
-        .timer {
-            font-family: monospace;
-            font-size: 48px;
-            margin: 20px 0;
-            text-align: center;
-            padding: 15px;
-            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-            border-radius: 10px;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .progress {
-            height: 12px;
-            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
-            border-radius: 6px;
-            margin: 20px 0;
-            overflow: hidden;
-        }
-
-        .progress-bar {
-            background-color: var(--tg-theme-button-color, #3390ec);
-            transition: width 0.3s ease;
-        }
-
-        .stats {
-            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 30px;
-        }
-
-        .stats-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .stats-tab {
-            cursor: pointer;
-            padding: 8px 16px;
-            background: rgba(0,0,0,0.1);
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }
-
-        .stats-tab.active {
-            background: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
-        }
-
-        .stats-content {
-            padding: 15px;
-            background: rgba(0,0,0,0.05);
-            border-radius: 8px;
-        }
-
-        .stats-content p {
-            display: flex;
-            justify-content: space-between;
-            margin: 10px 0;
-            padding: 5px 0;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
-        }
-
-        .stats-content p:last-child {
-            border-bottom: none;
-        }
-
-        .achievement {
-            display: flex;
-            align-items: center;
-            margin: 10px 0;
-            padding: 10px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
-        }
-
-        .achievement-icon {
-            width: 30px;
-            height: 30px;
-            margin-right: 10px;
-            background: var(--tg-theme-button-color, #3390ec);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-        }
-
-        .instruction-box {
-            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
-            border-radius: 12px;
-            padding: 15px;
-            margin: 20px 0;
-        }
-
-        .instruction-box h4 {
-            margin-bottom: 10px;
-        }
-
-        .instruction-box ol {
-            margin: 0;
-            padding-left: 20px;
-        }
-
-        .instruction-box li {
-            margin: 5px 0;
-        }
-
-        .music-control {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
-        }
-
-        .music-control.playing {
-            background: #dc3545;
-            animation: pulse 2s infinite;
-        }
-
-        .music-control:active {
-            transform: scale(0.95);
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-
-        #youtubePlayer {
-            display: none;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Метод дыхания Вим Хофа</h1>
-        
-        <div class="settings-panel">
-            <h4>Настройка раундов</h4>
-            <div class="round-selector">
-                <button id="decreaseRounds">-</button>
-                <span id="roundsCount">3</span>
-                <button id="increaseRounds">+</button>
-            </div>
-            <div class="round-info">
-                Текущий раунд: <span id="currentRound">0</span>/<span id="totalRounds">3</span>
-            </div>
-        </div>
-
-        <div class="instruction-box">
-            <h4>Как практиковать:</h4>
-            <ol>
-                <li>Настройте количество раундов</li>
-                <li>Нажмите на круг, чтобы начать</li>
-                <li>Следуйте ритму дыхания: вдох через нос, выдох через рот</li>
-                <li>После 30 циклов задержите дыхание</li>
-                <li>Нажмите на круг, когда потребуется вдох</li>
-            </ol>
-        </div>
-        
-        <div class="breath-circle-container">
-            <div id="breathCircle" class="breath-circle">
-                <span id="circleText">Начать</span>
-            </div>
-        </div>
-        
-        <div class="phase-text" id="phaseText">
-            Нажмите на круг, чтобы начать
-        </div>
-        
-        <div class="timer" id="timer">
-            00:00
-        </div>
-        
-        <div class="progress">
-            <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
-        </div>
-        
-        <div class="stats">
-            <h3>Статистика</h3>
-            <div class="stats-tabs">
-                <span class="stats-tab active" data-tab="today">Сегодня</span>
-                <span class="stats-tab" data-tab="alltime">За всё время</span>
-            </div>
-            
-            <div class="stats-content" id="statsToday">
-                <p>
-                    <span>Сессий сегодня:</span>
-                    <span id="sessionsToday">0</span>
-                </p>
-                <p>
-                    <span>Лучшее время сегодня:</span>
-                    <span id="bestTimeToday">00:00</span>
-                </p>
-                <p>
-                    <span>Среднее время:</span>
-                    <span id="avgTimeToday">00:00</span>
-                </p>
-            </div>
-            
-            <div class="stats-content" id="statsAllTime" style="display: none;">
-                <p>
-                    <span>Всего сессий:</span>
-                    <span id="totalSessions">0</span>
-                </p>
-                <p>
-                    <span>Лучшее время:</span>
-                    <span id="bestTimeAll">00:00</span>
-                </p>
-                <p>
-                    <span>Средняя задержка:</span>
-                    <span id="avgTimeAll">00:00</span>
-                </p>
-                <p>
-                    <span>Дней подряд:</span>
-                    <span id="streakDays">0</span>
-                </p>
-            </div>
-
-            <div class="achievements">
-                <h4>Достижения</h4>
-                <div id="achievementsList">
-                    <!-- Достижения будут добавляться динамически -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="youtubePlayer"></div>
-    <button class="music-control" id="musicControl" title="Управление музыкой">🎵</button>
-
-    <script src="app.js"></script>
-</body>
-</html>
+    // Загрузка сохраненных данных при старте
+    loadUserData();
+    updateStatsDisplay();
+    checkAchievements();
+});
