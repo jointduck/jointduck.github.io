@@ -7,6 +7,44 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        .music-control {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: var(--tg-theme-button-color, #3390ec);
+        color: var(--tg-theme-button-text-color, #ffffff);
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+    }
+
+    .music-control.playing {
+        background: #dc3545;
+        animation: pulse 2s infinite;
+    }
+
+    .music-control:active {
+        transform: scale(0.95);
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+
+    #youtubePlayer {
+        display: none;
+    }
         body {
             background-color: var(--tg-theme-bg-color, #fff);
             color: var(--tg-theme-text-color, #000);
@@ -227,8 +265,11 @@
             margin: 5px 0;
         }
     </style>
+    <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body>
+    <div id="youtubePlayer"></div>
+<button class="music-control" id="musicControl" title="Управление музыкой">🎵</button>
     <div class="container">
         <h1>Метод дыхания Вим Хофа</h1>
         
@@ -322,5 +363,15 @@
     </div>
 
     <script src="app.js"></script>
+    <!-- Скрытый плеер YouTube -->
+<div id="player" style="display: none;"></div>
+
+<!-- Кнопка управления музыкой -->
+<div class="music-control">
+    <button id="toggleMusic" class="music-button">
+        <span class="music-icon">🎵</span>
+        <span id="musicStatus">Включить музыку</span>
+    </button>
+</div>
 </body>
 </html>
