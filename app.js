@@ -3,9 +3,36 @@ tg.expand();
 
 // Состояние приложения
 const state = {
-    // Заменяем массив видео на ID плейлиста
-const YOUTUBE_PLAYLIST_ID = 'PLstkrDtqpxiIWWU4ctz1Hg_U_XpUo5zr4'; // Это пример ID плейлиста
+    isBreathing: false,
+    currentPhase: 'idle', // idle, breathing, holding, recovery
+    rounds: {
+        current: 0,
+        total: 3,
+        breathCount: 0
+    },
+    timer: {
+        startTime: null,
+        duration: 0,
+        interval: null
+    },
+    stats: {
+        today: {
+            sessions: 0,
+            bestTime: 0,
+            times: []
+        },
+        allTime: {
+            sessions: 0,
+            bestTime: 0,
+            times: [],
+            streak: 0,
+            lastPractice: null
+        }
+    }
+};
 
+// YouTube плеер
+const YOUTUBE_PLAYLIST_ID = 'PLRBp0Fe2GpglkzuspoGv-mu7B2ce9_0Fn'; // Медитативная музыка
 let player;
 let isPlaying = false;
 
@@ -23,7 +50,7 @@ function onYouTubeIframeAPIReady() {
             'playsinline': 1,
             'listType': 'playlist',
             'list': YOUTUBE_PLAYLIST_ID,
-            'shuffle': 1 // Включаем случайный порядок
+            'shuffle': 1
         },
         events: {
             'onReady': onPlayerReady,
@@ -55,59 +82,13 @@ function toggleMusic() {
     if (!isPlaying) {
         player.playVideo();
         if (player.getPlayerState() === YT.PlayerState.CUED) {
-            player.setShuffle(true); // Включаем случайный порядок
+            player.setShuffle(true);
             player.playVideoAt(Math.floor(Math.random() * player.getPlaylist().length));
         }
     } else {
         player.pauseVideo();
     }
 }
-
-// Добавляем функцию для остановки музыки при завершении сессии
-function finishSession() {
-    // Существующий код finishSession...
-
-    if (isPlaying) {
-        player.pauseVideo();
-    }
-}
-
-// Добавляем автоматическое включение музыки при начале сессии
-function startBreathingSession() {
-    // Существующий код startBreathingSession...
-
-    if (!isPlaying) {
-        toggleMusic();
-    }
-}
-    
-    isBreathing: false,
-    currentPhase: 'idle', // idle, breathing, holding, recovery
-    rounds: {
-        current: 0,
-        total: 3,
-        breathCount: 0
-    },
-    timer: {
-        startTime: null,
-        duration: 0,
-        interval: null
-    },
-    stats: {
-        today: {
-            sessions: 0,
-            bestTime: 0,
-            times: []
-        },
-        allTime: {
-            sessions: 0,
-            bestTime: 0,
-            times: [],
-            streak: 0,
-            lastPractice: null
-        }
-    }
-};
 
 // Элементы DOM
 const elements = {
@@ -129,16 +110,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (decreaseButton && increaseButton) {
         decreaseButton.addEventListener('click', () => {
-            if (.rounds.total > 1) {
-                .rounds.total--;
+            if (state.rounds.total > 1) {
+                state.rounds.total--;
                 updateRoundsDisplay();
                 saveUserData();
             }
         });
 
         increaseButton.addEventListener('click', () => {
-            if (.rounds.total < 10) {
-                .rounds.total++;
+            if (state.rounds.total < 10) {
+                state.rounds.total++;
                 updateRoundsDisplay();
                 saveUserData();
             }
@@ -161,20 +142,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Обработчик нажатия на круг
 function handleBreathCircleClick() {
-    if (.currentPhase === 'idle') {
+    if (state.currentPhase === 'idle') {
         startBreathingSession();
-    } else if (.currentPhase === 'holding') {
+    } else if (state.currentPhase === 'holding') {
         finishHoldingPhase();
     }
 }
 
 // Начало сессии дыхания
 function startBreathingSession() {
-    .currentPhase = 'breathing';
-    .rounds.current++;
-    .rounds.breathCount = 0;
+    state.currentPhase = 'breathing';
+    state.rounds.current++;
+    state.rounds.breathCount = 0;
     startBreathingCycle();
     updateRoundsDisplay();
+    
+    if (!isPlaying) {
+        toggleMusic();
+    }
 }
 
 // Цикл дыхания
@@ -273,6 +258,10 @@ function finishSession() {
     elements.phaseText.textContent = 'Нажмите на круг, чтобы начать';
     elements.timer.textContent = '00:00';
     elements.progressBar.style.width = '0%';
+    
+    if (isPlaying) {
+        toggleMusic();
+    }
     
     updateRoundsDisplay();
 }
