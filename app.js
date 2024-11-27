@@ -122,6 +122,8 @@ function onPlayerStateChange(event) {
 }
 
 function toggleMusic() {
+    if (!player) return;
+    
     if (!isPlaying) {
         player.playVideo();
         if (player.getPlayerState() === YT.PlayerState.CUED) {
@@ -137,6 +139,7 @@ function toggleMusic() {
 document.addEventListener('DOMContentLoaded', function() {
     const decreaseButton = document.getElementById('decreaseRounds');
     const increaseButton = document.getElementById('increaseRounds');
+    const breathCircle = document.getElementById('breathCircle');
 
     if (decreaseButton && increaseButton) {
         addTouchSupport(decreaseButton, () => {
@@ -156,8 +159,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    if (elements.breathCircle) {
-        addTouchSupport(elements.breathCircle, handleBreathCircleClick);
+    const musicControl = document.getElementById('musicControl');
+    if (musicControl) {
+        addTouchSupport(musicControl, toggleMusic);
+    }
+
+    if (breathCircle) {
+        addTouchSupport(breathCircle, handleBreathCircleClick);
+        breathCircle.style.cursor = 'pointer';
     }
 
     document.querySelectorAll('.stats-tab').forEach(tab => {
