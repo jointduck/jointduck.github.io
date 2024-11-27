@@ -43,7 +43,7 @@ const state = {
 };
 
 // YouTube плеер
-const YOUTUBE_PLAYLIST_ID = 'PLRBp0Fe2GpglkzuspoGv-mu7B2ce9_0Fn';
+const YOUTUBE_PLAYLIST_ID = 'PLstkrDtqpxiIWWU4ctz1Hg_U_XpUo5zr4';
 let player;
 let isPlaying = false;
 
