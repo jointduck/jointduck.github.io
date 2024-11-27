@@ -203,7 +203,9 @@ function startBreathingCycle() {
         elements.breathCircle.classList.remove('breathing-out');
         elements.circleText.textContent = `Вдох ${state.rounds.breathCount}/30`;
         elements.phaseText.textContent = 'Глубокий вдох через нос';
-        hapticFeedback('impact', 'light'); // Вибрация при вдохе
+        if (state.rounds.breathCount === 30) {
+            hapticFeedback('impact', 'light'); // Вибрация только на последнем вдохе
+        }
         
         setTimeout(() => {
             if (state.currentPhase === 'breathing') {
@@ -211,7 +213,9 @@ function startBreathingCycle() {
                 elements.breathCircle.classList.add('breathing-out');
                 elements.circleText.textContent = `Выдох ${state.rounds.breathCount}/30`;
                 elements.phaseText.textContent = 'Спокойный выдох через рот';
-                hapticFeedback('impact', 'light'); // Вибрация при выдохе
+                if (state.rounds.breathCount === 30) {
+                    hapticFeedback('impact', 'light'); // Вибрация только на последнем выдохе
+                }
                 
                 setTimeout(() => {
                     elements.breathCircle.classList.remove('breathing-out');
@@ -283,6 +287,7 @@ function startRecoveryPhase() {
                 
                 if (holdTime <= 0) {
                     clearInterval(holdInterval);
+                    hapticFeedback('impact', 'medium'); // Вибрация после 15-секундной задержки
                     
                     // 2 секунды на выдох
                     let breathOutTime = 2;
