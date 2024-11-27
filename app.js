@@ -43,7 +43,7 @@ const state = {
 };
 
 // YouTube плеер
-const YOUTUBE_PLAYLIST_ID = 'PLRBp0Fe2GpglkzuspoGv-mu7B2ce9_0Fn';
+const YOUTUBE_PLAYLIST_ID = 'PLstkrDtqpxiIWWU4ctz1Hg_U_XpUo5zr4';
 let player;
 let isPlaying = false;
 
@@ -174,7 +174,6 @@ function startBreathingSession() {
         toggleMusic();
     }
 }
-
 // Цикл дыхания
 function startBreathingCycle() {
     if (state.currentPhase !== 'breathing') return;
@@ -253,18 +252,32 @@ function finishHoldingPhase() {
 function startRecoveryPhase() {
     state.currentPhase = 'recovery';
     elements.circleText.textContent = 'Восстановление';
-    elements.phaseText.textContent = 'Глубокий вдох и задержка на 15 секунд';
     
-    let recoveryTime = 15;
-    elements.timer.textContent = formatTime(recoveryTime);
+    // Сначала 2 секунды на глубокий вдох
+    let breathInTime = 2;
+    elements.phaseText.textContent = 'Сделайте глубокий вдох';
+    elements.timer.textContent = formatTime(breathInTime);
     
-    const recoveryInterval = setInterval(() => {
-        recoveryTime--;
-        elements.timer.textContent = formatTime(recoveryTime);
+    const breathInInterval = setInterval(() => {
+        breathInTime--;
+        elements.timer.textContent = formatTime(breathInTime);
         
-        if (recoveryTime <= 0) {
-            clearInterval(recoveryInterval);
-            startBreathingSession();
+        if (breathInTime <= 0) {
+            clearInterval(breathInInterval);
+            // Затем 15 секунд задержки
+            let recoveryTime = 15;
+            elements.phaseText.textContent = 'Задержите дыхание на 15 секунд';
+            elements.timer.textContent = formatTime(recoveryTime);
+            
+            const recoveryInterval = setInterval(() => {
+                recoveryTime--;
+                elements.timer.textContent = formatTime(recoveryTime);
+                
+                if (recoveryTime <= 0) {
+                    clearInterval(recoveryInterval);
+                    startBreathingSession();
+                }
+            }, 1000);
         }
     }, 1000);
 }
@@ -272,23 +285,36 @@ function startRecoveryPhase() {
 // Финальная задержка дыхания
 function startFinalHold() {
     state.currentPhase = 'finalHold';
-    elements.circleText.textContent = 'Финальная задержка';
-    elements.phaseText.textContent = 'Последняя задержка дыхания на 15 секунд';
+    elements.circleText.textContent = 'Восстановление';
     
-    let finalHoldTime = 15;
-    elements.timer.textContent = formatTime(finalHoldTime);
+    // Сначала 2 секунды на глубокий вдох
+    let breathInTime = 2;
+    elements.phaseText.textContent = 'Сделайте глубокий вдох';
+    elements.timer.textContent = formatTime(breathInTime);
     
-    const finalHoldInterval = setInterval(() => {
-        finalHoldTime--;
-        elements.timer.textContent = formatTime(finalHoldTime);
+    const breathInInterval = setInterval(() => {
+        breathInTime--;
+        elements.timer.textContent = formatTime(breathInTime);
         
-        if (finalHoldTime <= 0) {
-            clearInterval(finalHoldInterval);
-            finishSession();
+        if (breathInTime <= 0) {
+            clearInterval(breathInInterval);
+            // Затем 15 секунд задержки
+            let finalHoldTime = 15;
+            elements.phaseText.textContent = 'Задержите дыхание на 15 секунд';
+            elements.timer.textContent = formatTime(finalHoldTime);
+            
+            const finalHoldInterval = setInterval(() => {
+                finalHoldTime--;
+                elements.timer.textContent = formatTime(finalHoldTime);
+                
+                if (finalHoldTime <= 0) {
+                    clearInterval(finalHoldInterval);
+                    finishSession();
+                }
+            }, 1000);
         }
     }, 1000);
 }
-
 // Завершение сессии
 function finishSession() {
     state.currentPhase = 'idle';
