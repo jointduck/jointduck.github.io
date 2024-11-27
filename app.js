@@ -12,6 +12,23 @@ function addTouchSupport(element, callback) {
     }, { passive: false });
 }
 
+// Функция для тактильной обратной связи
+function hapticFeedback(type, intensity = 'light') {
+    if (tg.HapticFeedback) {
+        switch(type) {
+            case 'impact':
+                tg.HapticFeedback.impactOccurred(intensity);
+                break;
+            case 'notification':
+                tg.HapticFeedback.notificationOccurred(intensity);
+                break;
+            case 'selection':
+                tg.HapticFeedback.selectionChanged();
+                break;
+        }
+    }
+}
+
 // Состояние приложения
 const state = {
     isBreathing: false,
@@ -186,6 +203,7 @@ function startBreathingCycle() {
         elements.breathCircle.classList.remove('breathing-out');
         elements.circleText.textContent = `Вдох ${state.rounds.breathCount}/30`;
         elements.phaseText.textContent = 'Глубокий вдох через нос';
+        hapticFeedback('impact', 'light'); // Вибрация при вдохе
         
         setTimeout(() => {
             if (state.currentPhase === 'breathing') {
@@ -193,6 +211,7 @@ function startBreathingCycle() {
                 elements.breathCircle.classList.add('breathing-out');
                 elements.circleText.textContent = `Выдох ${state.rounds.breathCount}/30`;
                 elements.phaseText.textContent = 'Спокойный выдох через рот';
+                hapticFeedback('impact', 'light'); // Вибрация при выдохе
                 
                 setTimeout(() => {
                     elements.breathCircle.classList.remove('breathing-out');
@@ -215,6 +234,7 @@ function startHoldingPhase() {
     elements.breathCircle.classList.remove('breathing-in', 'breathing-out');
     elements.circleText.textContent = 'Задержка';
     elements.phaseText.textContent = 'Выдохните и задержите дыхание';
+    hapticFeedback('impact', 'medium'); // Вибрация при начале задержки
     
     state.timer.startTime = Date.now();
     state.timer.interval = setInterval(updateTimer, 1000);
@@ -226,6 +246,7 @@ function finishHoldingPhase() {
 
     clearInterval(state.timer.interval);
     const holdTime = Math.floor((Date.now() - state.timer.startTime) / 1000);
+    hapticFeedback('impact', 'medium'); // Вибрация при окончании задержки
     updateStats(holdTime);
     
     if (state.rounds.current < state.rounds.total) {
@@ -333,6 +354,9 @@ function startFinalHold() {
 
 // Завершение сессии
 function finishSession() {
+    hapticFeedback('impact', 'heavy'); // Сильная вибрация при завершении
+    hapticFeedback('notification', 'success'); // Уведомление об успешном завершении
+    
     state.currentPhase = 'idle';
     state.rounds.current = 0;
     state.rounds.breathCount = 0;
@@ -421,6 +445,11 @@ function updateStats(holdTime) {
             state.stats.allTime.streak = 1;
         }
         state.stats.allTime.lastPractice = today;
+    }
+
+    if (holdTime > state.stats.today.bestTime) {
+        state.stats.today.bestTime = holdTime;
+        hapticFeedback('notification', 'success'); // Уведомление о новом рекорде
     }
 
     saveUserData();
