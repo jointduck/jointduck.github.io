@@ -12,10 +12,24 @@ function addTouchSupport(element, callback) {
     }, { passive: false });
 }
 
-// Функция для вибрации
+// Обновленная функция для вибрации
 function vibrate(pattern) {
-    if ('vibrate' in navigator) {
-        navigator.vibrate(pattern);
+    try {
+        // Проверяем поддержку вибрации
+        if ('vibrate' in navigator) {
+            // Для iOS нужно использовать только одиночные значения
+            if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
+                navigator.vibrate(200);
+            } else {
+                // Для Android и других устройств используем паттерн
+                navigator.vibrate(pattern);
+            }
+            console.log('Vibration triggered:', pattern); // Для отладки
+        } else {
+            console.log('Vibration not supported'); // Для отладки
+        }
+    } catch (error) {
+        console.log('Vibration error:', error); // Для отладки
     }
 }
 
@@ -153,6 +167,17 @@ document.addEventListener('DOMContentLoaded', function() {
         addTouchSupport(tab, (e) => handleStatsTabClick(e));
     });
 
+    // Проверка поддержки вибрации
+    if ('vibrate' in navigator) {
+        console.log('Vibration supported');
+        // Тестовая вибрация при загрузке
+        setTimeout(() => {
+            vibrate([200]);
+        }, 1000);
+    } else {
+        console.log('Vibration not supported');
+    }
+
     loadUserData();
     updateStatsDisplay();
     updateDailyChart();
@@ -210,8 +235,8 @@ function startBreathingCycle() {
 
         elements.progressBar.style.width = `${(state.rounds.breathCount/30) * 100}%`;
     } else {
-        // Вибрация после завершения 30 вдохов
-        vibrate([200, 100, 200]);
+        // Усиленная вибрация после 30 вдохов
+        vibrate([300, 100, 300, 100, 300]); // Тройная вибрация
         startHoldingPhase();
     }
 }
@@ -268,8 +293,8 @@ function startRecoveryPhase() {
                 
                 if (holdTime <= 0) {
                     clearInterval(holdInterval);
-                    // Вибрация после завершения 15-секундной задержки
-                    vibrate([200, 100, 200]);
+                    // Усиленная вибрация после задержки
+                    vibrate([400, 100, 400, 100, 400]); // Тройная более длинная вибрация
                     
                     // 2 секунды на выдох
                     let breathOutTime = 2;
@@ -318,8 +343,8 @@ function startFinalHold() {
                 
                 if (holdTime <= 0) {
                     clearInterval(holdInterval);
-                    // Вибрация после завершения финальной 15-секундной задержки (более длинная)
-                    vibrate([400, 100, 400]);
+                    // Максимальная вибрация в конце
+                    vibrate([500, 200, 500, 200, 500, 200, 500]); // Четырёхкратная длинная вибрация
                     
                     // 2 секунды на выдох
                     let breathOutTime = 2;
@@ -358,135 +383,240 @@ function finishSession() {
     
     updateRoundsDisplay();
 }
-// Завершение фазы задержки дыхания
-function finishHoldingPhase() {
-    if (state.currentPhase !== 'holding') return;
+// Обновление таймера
+function updateTimer() {
+    const elapsed = Math.floor((Date.now() - state.timer.startTime) / 1000);
+    elements.timer.textContent = formatTime(elapsed);
+}
 
-    clearInterval(state.timer.interval);
-    const holdTime = Math.floor((Date.now() - state.timer.startTime) / 1000);
-    updateStats(holdTime);
+// Форматирование времени
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Обработчик вкладок статистики
+function handleStatsTabClick(e) {
+    document.querySelectorAll('.stats-tab').forEach(tab => tab.classList.remove('active'));
+    e.target.classList.add('active');
     
-    if (state.rounds.current < state.rounds.total) {
-        startRecoveryPhase();
-    } else {
-        startFinalHold();
+    document.querySelectorAll('.stats-content').forEach(content => {
+        content.style.display = 'none';
+    });
+    
+    document.getElementById(`stats${e.target.dataset.tab.charAt(0).toUpperCase() + e.target.dataset.tab.slice(1)}`)
+        .style.display = 'block';
+}
+
+// Обновление отображения раундов
+function updateRoundsDisplay() {
+    elements.roundsCount.textContent = state.rounds.total;
+    elements.currentRound.textContent = state.rounds.current;
+    elements.totalRounds.textContent = state.rounds.total;
+}
+
+// Обновление статистики
+function updateStats(holdTime) {
+    const today = new Date().toDateString();
+    
+    // Обновление дневной статистики
+    state.stats.today.sessions++;
+    state.stats.today.times.push(holdTime);
+    state.stats.today.bestTime = Math.max(state.stats.today.bestTime, holdTime);
+
+    // Обновление общей статистики
+    state.stats.allTime.sessions++;
+    state.stats.allTime.times.push(holdTime);
+    state.stats.allTime.bestTime = Math.max(state.stats.allTime.bestTime, holdTime);
+
+    // Обновление ежедневной статистики для графика
+    const dailyStats = JSON.parse(localStorage.getItem(`wimhof_${tg.initDataUnsafe?.user?.id}_daily`) || '{}');
+    if (!dailyStats[today]) {
+        dailyStats[today] = [];
+    }
+    dailyStats[today].push(holdTime);
+    localStorage.setItem(`wimhof_${tg.initDataUnsafe?.user?.id}_daily`, JSON.stringify(dailyStats));
+
+    // Обновление серии дней
+    if (state.stats.allTime.lastPractice !== today) {
+        const lastDate = new Date(state.stats.allTime.lastPractice);
+        const currentDate = new Date(today);
+        const diffDays = Math.floor((currentDate - lastDate) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) {
+            state.stats.allTime.streak++;
+        } else if (diffDays > 1) {
+            state.stats.allTime.streak = 1;
+        }
+        state.stats.allTime.lastPractice = today;
+    }
+
+    saveUserData();
+    updateStatsDisplay();
+    updateDailyChart();
+    checkAchievements();
+}
+
+// Обновление отображения статистики
+function updateStatsDisplay() {
+    document.getElementById('sessionsToday').textContent = state.stats.today.sessions;
+    document.getElementById('bestTimeToday').textContent = formatTime(state.stats.today.bestTime);
+    document.getElementById('avgTimeToday').textContent = formatTime(
+        state.stats.today.times.length > 0 
+            ? Math.floor(state.stats.today.times.reduce((a, b) => a + b, 0) / state.stats.today.times.length)
+            : 0
+    );
+
+    document.getElementById('totalSessions').textContent = state.stats.allTime.sessions;
+    document.getElementById('bestTimeAll').textContent = formatTime(state.stats.allTime.bestTime);
+    document.getElementById('avgTimeAll').textContent = formatTime(
+        state.stats.allTime.times.length > 0 
+            ? Math.floor(state.stats.allTime.times.reduce((a, b) => a + b, 0) / state.stats.allTime.times.length)
+            : 0
+    );
+    document.getElementById('streakDays').textContent = state.stats.allTime.streak;
+}
+
+// Обновление графика
+function updateDailyChart() {
+    const dailyStats = JSON.parse(localStorage.getItem(`wimhof_${tg.initDataUnsafe?.user?.id}_daily`) || '{}');
+    const ctx = document.getElementById('dailyStatsChart').getContext('2d');
+    
+    // Получаем последние 7 дней
+    const dates = Object.keys(dailyStats).sort().slice(-7);
+    const data = dates.map(date => {
+        const times = dailyStats[date];
+        return Math.max(...times); // Берем лучший результат за день
+    });
+
+    // Уничтожаем предыдущий график, если он существует
+    if (window.dailyChart) {
+        window.dailyChart.destroy();
+    }
+
+    // Создаем новый график
+    window.dailyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: dates.map(date => new Date(date).toLocaleDateString()),
+            datasets: [{
+                label: 'Лучшее время задержки (сек)',
+                data: data,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Секунды'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Дата'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            }
+        }
+    });
+}
+
+// Проверка достижений
+function checkAchievements() {
+    const achievements = [
+        {
+            id: 'firstSession',
+            title: 'Первый шаг',
+            condition: () => state.stats.allTime.sessions === 1,
+            icon: '🎯'
+        },
+        {
+            id: 'tenSessions',
+            title: 'Постоянная практика',
+            condition: () => state.stats.allTime.sessions >= 10,
+            icon: '🌟'
+        },
+        {
+            id: 'threeMinutes',
+            title: 'Мастер задержки',
+            condition: () => state.stats.allTime.bestTime >= 180,
+            icon: '⭐'
+        },
+        {
+            id: 'weekStreak',
+            title: 'Недельный марафон',
+            condition: () => state.stats.allTime.streak >= 7,
+            icon: '🏃'
+        }
+    ];
+
+    const achievementsList = document.getElementById('achievementsList');
+    achievementsList.innerHTML = '';
+
+    achievements.forEach(achievement => {
+        if (achievement.condition()) {
+            const achievementElement = document.createElement('div');
+            achievementElement.className = 'achievement';
+            achievementElement.innerHTML = `
+                <div class="achievement-icon">${achievement.icon}</div>
+                <div class="achievement-info">
+                    <div class="achievement-title">${achievement.title}</div>
+                </div>
+            `;
+            achievementsList.appendChild(achievementElement);
+        }
+    });
+}
+
+// Сохранение данных пользователя
+function saveUserData() {
+    const userId = tg.initDataUnsafe?.user?.id;
+    if (userId) {
+        localStorage.setItem(`wimhof_${userId}`, JSON.stringify({
+            stats: state.stats,
+            rounds: {
+                total: state.rounds.total
+            }
+        }));
     }
 }
 
-// Фаза восстановления
-function startRecoveryPhase() {
-    state.currentPhase = 'recovery';
-    elements.circleText.textContent = 'Восстановление';
-    
-    // 2 секунды на глубокий вдох
-    let breathInTime = 2;
-    elements.phaseText.textContent = 'Сделайте глубокий вдох';
-    elements.timer.textContent = formatTime(breathInTime);
-    
-    const breathInInterval = setInterval(() => {
-        breathInTime--;
-        elements.timer.textContent = formatTime(breathInTime);
-        
-        if (breathInTime <= 0) {
-            clearInterval(breathInInterval);
-            // 15 секунд задержки
-            let holdTime = 15;
-            elements.phaseText.textContent = 'Задержите дыхание';
-            elements.timer.textContent = formatTime(holdTime);
+// Загрузка данных пользователя
+function loadUserData() {
+    const userId = tg.initDataUnsafe?.user?.id;
+    if (userId) {
+        const savedData = localStorage.getItem(`wimhof_${userId}`);
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            state.stats = data.stats;
+            state.rounds.total = data.rounds.total;
             
-            const holdInterval = setInterval(() => {
-                holdTime--;
-                elements.timer.textContent = formatTime(holdTime);
-                
-                if (holdTime <= 0) {
-                    clearInterval(holdInterval);
-                    // Вибрация после завершения 15-секундной задержки
-                    vibrate([200, 100, 200]);
-                    
-                    // 2 секунды на выдох
-                    let breathOutTime = 2;
-                    elements.phaseText.textContent = 'Медленно выдохните';
-                    elements.timer.textContent = formatTime(breathOutTime);
-                    
-                    const breathOutInterval = setInterval(() => {
-                        breathOutTime--;
-                        elements.timer.textContent = formatTime(breathOutTime);
-                        
-                        if (breathOutTime <= 0) {
-                            clearInterval(breathOutInterval);
-                            startBreathingSession();
-                        }
-                    }, 1000);
-                }
-            }, 1000);
-        }
-    }, 1000);
-}
-
-// Финальная задержка дыхания
-function startFinalHold() {
-    state.currentPhase = 'finalHold';
-    elements.circleText.textContent = 'Восстановление';
-    
-    // 2 секунды на глубокий вдох
-    let breathInTime = 2;
-    elements.phaseText.textContent = 'Сделайте глубокий вдох';
-    elements.timer.textContent = formatTime(breathInTime);
-    
-    const breathInInterval = setInterval(() => {
-        breathInTime--;
-        elements.timer.textContent = formatTime(breathInTime);
-        
-        if (breathInTime <= 0) {
-            clearInterval(breathInInterval);
-            // 15 секунд задержки
-            let holdTime = 15;
-            elements.phaseText.textContent = 'Задержите дыхание';
-            elements.timer.textContent = formatTime(holdTime);
+            // Проверка и сброс дневной статистики
+            const today = new Date().toDateString();
+            if (state.stats.allTime.lastPractice !== today) {
+                state.stats.today = {
+                    sessions: 0,
+                    bestTime: 0,
+                    times: []
+                };
+            }
             
-            const holdInterval = setInterval(() => {
-                holdTime--;
-                elements.timer.textContent = formatTime(holdTime);
-                
-                if (holdTime <= 0) {
-                    clearInterval(holdInterval);
-                    // Вибрация после завершения финальной 15-секундной задержки (более длинная)
-                    vibrate([400, 100, 400]);
-                    
-                    // 2 секунды на выдох
-                    let breathOutTime = 2;
-                    elements.phaseText.textContent = 'Медленно выдохните';
-                    elements.timer.textContent = formatTime(breathOutTime);
-                    
-                    const breathOutInterval = setInterval(() => {
-                        breathOutTime--;
-                        elements.timer.textContent = formatTime(breathOutTime);
-                        
-                        if (breathOutTime <= 0) {
-                            clearInterval(breathOutInterval);
-                            finishSession();
-                        }
-                    }, 1000);
-                }
-            }, 1000);
+            updateRoundsDisplay();
         }
-    }, 1000);
-}
-
-// Завершение сессии
-function finishSession() {
-    state.currentPhase = 'idle';
-    state.rounds.current = 0;
-    state.rounds.breathCount = 0;
-    
-    elements.circleText.textContent = 'Начать';
-    elements.phaseText.textContent = 'Нажмите на круг, чтобы начать';
-    elements.timer.textContent = '00:00';
-    elements.progressBar.style.width = '0%';
-    
-    if (isPlaying) {
-        toggleMusic();
     }
-    
-    updateRoundsDisplay();
 }
