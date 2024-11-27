@@ -100,10 +100,7 @@ function onYouTubeIframeAPIReady() {
 }
 
 function onPlayerReady(event) {
-    const musicControl = document.getElementById('musicControl');
-    if (musicControl) {
-        addTouchSupport(musicControl, toggleMusic);
-    }
+    console.log('YouTube player ready');
 }
 
 function onPlayerStateChange(event) {
@@ -140,6 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const decreaseButton = document.getElementById('decreaseRounds');
     const increaseButton = document.getElementById('increaseRounds');
     const breathCircle = document.getElementById('breathCircle');
+    const musicControl = document.getElementById('musicControl');
 
     if (decreaseButton && increaseButton) {
         addTouchSupport(decreaseButton, () => {
@@ -159,14 +157,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const musicControl = document.getElementById('musicControl');
-    if (musicControl) {
-        addTouchSupport(musicControl, toggleMusic);
-    }
-
     if (breathCircle) {
         addTouchSupport(breathCircle, handleBreathCircleClick);
         breathCircle.style.cursor = 'pointer';
+    }
+
+    if (musicControl) {
+        addTouchSupport(musicControl, () => {
+            if (player && typeof player.getPlayerState === 'function') {
+                toggleMusic();
+            }
+        });
+        musicControl.style.cursor = 'pointer';
     }
 
     document.querySelectorAll('.stats-tab').forEach(tab => {
