@@ -103,7 +103,6 @@ function toggleMusic() {
         player.pauseVideo();
     }
 }
-
 // Элементы DOM
 const elements = {
     breathCircle: document.getElementById('breathCircle'),
@@ -174,6 +173,7 @@ function startBreathingSession() {
         toggleMusic();
     }
 }
+
 // Цикл дыхания
 function startBreathingCycle() {
     if (state.currentPhase !== 'breathing') return;
@@ -217,35 +217,19 @@ function startHoldingPhase() {
     state.timer.startTime = Date.now();
     state.timer.interval = setInterval(updateTimer, 1000);
 }
-
 // Завершение фазы задержки дыхания
 function finishHoldingPhase() {
     if (state.currentPhase !== 'holding') return;
 
     clearInterval(state.timer.interval);
     const holdTime = Math.floor((Date.now() - state.timer.startTime) / 1000);
+    updateStats(holdTime);
     
-    // Добавляем 2 секунды паузы
-    let pauseTime = 2;
-    elements.circleText.textContent = 'Пауза';
-    elements.phaseText.textContent = 'Короткая пауза перед следующей фазой';
-    elements.timer.textContent = formatTime(pauseTime);
-    
-    const pauseInterval = setInterval(() => {
-        pauseTime--;
-        elements.timer.textContent = formatTime(pauseTime);
-        
-        if (pauseTime <= 0) {
-            clearInterval(pauseInterval);
-            updateStats(holdTime);
-            
-            if (state.rounds.current < state.rounds.total) {
-                startRecoveryPhase();
-            } else {
-                startFinalHold();
-            }
-        }
-    }, 1000);
+    if (state.rounds.current < state.rounds.total) {
+        startRecoveryPhase();
+    } else {
+        startFinalHold();
+    }
 }
 
 // Фаза восстановления
@@ -253,7 +237,7 @@ function startRecoveryPhase() {
     state.currentPhase = 'recovery';
     elements.circleText.textContent = 'Восстановление';
     
-    // Сначала 2 секунды на глубокий вдох
+    // 2 секунды на глубокий вдох
     let breathInTime = 2;
     elements.phaseText.textContent = 'Сделайте глубокий вдох';
     elements.timer.textContent = formatTime(breathInTime);
@@ -264,18 +248,31 @@ function startRecoveryPhase() {
         
         if (breathInTime <= 0) {
             clearInterval(breathInInterval);
-            // Затем 15 секунд задержки
-            let recoveryTime = 15;
-            elements.phaseText.textContent = 'Задержите дыхание на 15 секунд';
-            elements.timer.textContent = formatTime(recoveryTime);
+            // 15 секунд задержки
+            let holdTime = 15;
+            elements.phaseText.textContent = 'Задержите дыхание';
+            elements.timer.textContent = formatTime(holdTime);
             
-            const recoveryInterval = setInterval(() => {
-                recoveryTime--;
-                elements.timer.textContent = formatTime(recoveryTime);
+            const holdInterval = setInterval(() => {
+                holdTime--;
+                elements.timer.textContent = formatTime(holdTime);
                 
-                if (recoveryTime <= 0) {
-                    clearInterval(recoveryInterval);
-                    startBreathingSession();
+                if (holdTime <= 0) {
+                    clearInterval(holdInterval);
+                    // 2 секунды на выдох
+                    let breathOutTime = 2;
+                    elements.phaseText.textContent = 'Медленно выдохните';
+                    elements.timer.textContent = formatTime(breathOutTime);
+                    
+                    const breathOutInterval = setInterval(() => {
+                        breathOutTime--;
+                        elements.timer.textContent = formatTime(breathOutTime);
+                        
+                        if (breathOutTime <= 0) {
+                            clearInterval(breathOutInterval);
+                            startBreathingSession();
+                        }
+                    }, 1000);
                 }
             }, 1000);
         }
@@ -287,7 +284,7 @@ function startFinalHold() {
     state.currentPhase = 'finalHold';
     elements.circleText.textContent = 'Восстановление';
     
-    // Сначала 2 секунды на глубокий вдох
+    // 2 секунды на глубокий вдох
     let breathInTime = 2;
     elements.phaseText.textContent = 'Сделайте глубокий вдох';
     elements.timer.textContent = formatTime(breathInTime);
@@ -298,23 +295,37 @@ function startFinalHold() {
         
         if (breathInTime <= 0) {
             clearInterval(breathInInterval);
-            // Затем 15 секунд задержки
-            let finalHoldTime = 15;
-            elements.phaseText.textContent = 'Задержите дыхание на 15 секунд';
-            elements.timer.textContent = formatTime(finalHoldTime);
+            // 15 секунд задержки
+            let holdTime = 15;
+            elements.phaseText.textContent = 'Задержите дыхание';
+            elements.timer.textContent = formatTime(holdTime);
             
-            const finalHoldInterval = setInterval(() => {
-                finalHoldTime--;
-                elements.timer.textContent = formatTime(finalHoldTime);
+            const holdInterval = setInterval(() => {
+                holdTime--;
+                elements.timer.textContent = formatTime(holdTime);
                 
-                if (finalHoldTime <= 0) {
-                    clearInterval(finalHoldInterval);
-                    finishSession();
+                if (holdTime <= 0) {
+                    clearInterval(holdInterval);
+                    // 2 секунды на выдох
+                    let breathOutTime = 2;
+                    elements.phaseText.textContent = 'Медленно выдохните';
+                    elements.timer.textContent = formatTime(breathOutTime);
+                    
+                    const breathOutInterval = setInterval(() => {
+                        breathOutTime--;
+                        elements.timer.textContent = formatTime(breathOutTime);
+                        
+                        if (breathOutTime <= 0) {
+                            clearInterval(breathOutInterval);
+                            finishSession();
+                        }
+                    }, 1000);
                 }
             }, 1000);
         }
     }, 1000);
 }
+
 // Завершение сессии
 function finishSession() {
     state.currentPhase = 'idle';
@@ -332,7 +343,6 @@ function finishSession() {
     
     updateRoundsDisplay();
 }
-
 // Обновление таймера
 function updateTimer() {
     const elapsed = Math.floor((Date.now() - state.timer.startTime) / 1000);
