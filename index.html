@@ -6,6 +6,7 @@
     <title>Вим Хоф Дыхание</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -15,6 +16,13 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior: none;
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .container {
@@ -31,7 +39,6 @@
             justify-content: center;
             margin: 20px 0;
             position: relative;
-            touch-action: manipulation;
         }
 
         .breath-circle {
@@ -50,10 +57,7 @@
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
         }
 
         .breath-circle:active {
@@ -108,10 +112,7 @@
             align-items: center;
             justify-content: center;
             transition: transform 0.2s ease;
-            -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
         }
 
         .round-selector button:active {
@@ -184,10 +185,7 @@
             border-radius: 8px;
             transition: all 0.3s ease;
             font-size: 16px;
-            -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
         }
 
         .stats-tab.active {
@@ -272,10 +270,7 @@
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             transition: all 0.3s ease;
-            -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
         }
 
         .music-control.playing {
@@ -295,6 +290,20 @@
 
         #youtubePlayer {
             display: none;
+        }
+
+        .daily-stats {
+            background: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin-top: 20px;
         }
 
         @media (max-width: 768px) {
@@ -416,6 +425,13 @@
                 <div id="achievementsList">
                     <!-- Достижения будут добавляться динамически -->
                 </div>
+            </div>
+        </div>
+
+        <div class="daily-stats">
+            <h3>График задержек дыхания</h3>
+            <div class="chart-container">
+                <canvas id="dailyStatsChart"></canvas>
             </div>
         </div>
     </div>
