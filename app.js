@@ -184,13 +184,14 @@ function startBreathingSession() {
     state.currentPhase = 'breathing';
     state.rounds.current++;
     state.rounds.breathCount = 0;
-    startBreathingCycle();
-    updateRoundsDisplay();
     
-    // Автоматически включаем музыку при старте
-    if (!isPlaying) {
+    // Автоматически включаем музыку при старте первого раунда
+    if (state.rounds.current === 1 && !isPlaying) {
         toggleMusic();
     }
+    
+    startBreathingCycle();
+    updateRoundsDisplay();
 }
 
 // Цикл дыхания
