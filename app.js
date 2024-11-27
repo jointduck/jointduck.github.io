@@ -12,27 +12,6 @@ function addTouchSupport(element, callback) {
     }, { passive: false });
 }
 
-// Обновленная функция для вибрации
-function vibrate(pattern) {
-    try {
-        // Проверяем поддержку вибрации
-        if ('vibrate' in navigator) {
-            // Для iOS нужно использовать только одиночные значения
-            if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
-                navigator.vibrate(200);
-            } else {
-                // Для Android и других устройств используем паттерн
-                navigator.vibrate(pattern);
-            }
-            console.log('Vibration triggered:', pattern); // Для отладки
-        } else {
-            console.log('Vibration not supported'); // Для отладки
-        }
-    } catch (error) {
-        console.log('Vibration error:', error); // Для отладки
-    }
-}
-
 // Состояние приложения
 const state = {
     isBreathing: false,
@@ -116,11 +95,11 @@ function onPlayerStateChange(event) {
     
     if (event.data === YT.PlayerState.PLAYING) {
         musicControl.classList.add('playing');
-        musicControl.innerHTML = '⏸';
+        musicControl.innerHTML = '<span style="transform: scale(0.8);">⏸</span>';
         isPlaying = true;
     } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
         musicControl.classList.remove('playing');
-        musicControl.innerHTML = '🎵';
+        musicControl.innerHTML = '<span style="transform: scale(1.2);">🎵</span>';
         isPlaying = false;
     }
 }
@@ -168,17 +147,6 @@ document.addEventListener('DOMContentLoaded', function() {
         addTouchSupport(tab, (e) => handleStatsTabClick(e));
     });
 
-    // Проверка поддержки вибрации
-    if ('vibrate' in navigator) {
-        console.log('Vibration supported');
-        // Тестовая вибрация при загрузке
-        setTimeout(() => {
-            vibrate([200]);
-        }, 1000);
-    } else {
-        console.log('Vibration not supported');
-    }
-
     loadUserData();
     updateStatsDisplay();
     updateDailyChart();
@@ -202,6 +170,7 @@ function startBreathingSession() {
     startBreathingCycle();
     updateRoundsDisplay();
     
+    // Автоматически включаем музыку при старте
     if (!isPlaying) {
         toggleMusic();
     }
@@ -236,8 +205,6 @@ function startBreathingCycle() {
 
         elements.progressBar.style.width = `${(state.rounds.breathCount/30) * 100}%`;
     } else {
-        // Усиленная вибрация после 30 вдохов
-        vibrate([300, 100, 300, 100, 300]); // Тройная вибрация
         startHoldingPhase();
     }
 }
@@ -295,8 +262,6 @@ function startRecoveryPhase() {
                 
                 if (holdTime <= 0) {
                     clearInterval(holdInterval);
-                    // Усиленная вибрация после задержки
-                    vibrate([400, 100, 400, 100, 400]); // Тройная более длинная вибрация
                     
                     // 2 секунды на выдох
                     let breathOutTime = 2;
@@ -345,8 +310,6 @@ function startFinalHold() {
                 
                 if (holdTime <= 0) {
                     clearInterval(holdInterval);
-                    // Максимальная вибрация в конце
-                    vibrate([500, 200, 500, 200, 500, 200, 500]); // Четырёхкратная длинная вибрация
                     
                     // 2 секунды на выдох
                     let breathOutTime = 2;
