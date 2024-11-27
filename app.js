@@ -68,6 +68,18 @@ const YOUTUBE_PLAYLIST_ID = 'PLRBp0Fe2GpglkzuspoGv-mu7B2ce9_0Fn';
 let player;
 let isPlaying = false;
 
+// Элементы DOM
+const elements = {
+    breathCircle: document.getElementById('breathCircle'),
+    circleText: document.getElementById('circleText'),
+    phaseText: document.getElementById('phaseText'),
+    timer: document.getElementById('timer'),
+    progressBar: document.getElementById('progressBar'),
+    roundsCount: document.getElementById('roundsCount'),
+    currentRound: document.getElementById('currentRound'),
+    totalRounds: document.getElementById('totalRounds')
+};
+
 // Инициализация YouTube Player API
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('youtubePlayer', {
@@ -124,17 +136,6 @@ function toggleMusic() {
         player.pauseVideo();
     }
 }
-// Элементы DOM
-const elements = {
-    breathCircle: document.getElementById('breathCircle'),
-    circleText: document.getElementById('circleText'),
-    phaseText: document.getElementById('phaseText'),
-    timer: document.getElementById('timer'),
-    progressBar: document.getElementById('progressBar'),
-    roundsCount: document.getElementById('roundsCount'),
-    currentRound: document.getElementById('currentRound'),
-    totalRounds: document.getElementById('totalRounds')
-};
 
 // Инициализация после загрузки DOM
 document.addEventListener('DOMContentLoaded', function() {
@@ -251,6 +252,7 @@ function startHoldingPhase() {
     state.timer.startTime = Date.now();
     state.timer.interval = setInterval(updateTimer, 1000);
 }
+
 // Завершение фазы задержки дыхания
 function finishHoldingPhase() {
     if (state.currentPhase !== 'holding') return;
@@ -383,6 +385,7 @@ function finishSession() {
     
     updateRoundsDisplay();
 }
+
 // Обновление таймера
 function updateTimer() {
     const elapsed = Math.floor((Date.now() - state.timer.startTime) / 1000);
@@ -405,8 +408,13 @@ function handleStatsTabClick(e) {
         content.style.display = 'none';
     });
     
-    document.getElementById(`stats${e.target.dataset.tab.charAt(0).toUpperCase() + e.target.dataset.tab.slice(1)}`)
-        .style.display = 'block';
+    const targetContent = document.getElementById(`stats${e.target.dataset.tab.charAt(0).toUpperCase() + e.target.dataset.tab.slice(1)}`);
+    targetContent.style.display = 'block';
+    
+    // Обновляем график только при переключении на вкладку "За все время"
+    if (e.target.dataset.tab === 'allTime') {
+        updateDailyChart();
+    }
 }
 
 // Обновление отображения раундов
@@ -485,9 +493,18 @@ function updateDailyChart() {
     
     // Получаем последние 7 дней
     const dates = Object.keys(dailyStats).sort().slice(-7);
-    const data = dates.map(date => {
+    
+    // Подготавливаем данные для обоих наборов
+    const bestTimeData = dates.map(date => {
         const times = dailyStats[date];
-        return Math.max(...times); // Берем лучший результат за день
+        return Math.max(...times); // Лучший результат за день
+    });
+
+    const avgTimeData = dates.map(date => {
+        const times = dailyStats[date];
+        return times.length > 0 
+            ? Math.floor(times.reduce((a, b) => a + b, 0) / times.length) 
+            : 0; // Среднее время за день
     });
 
     // Уничтожаем предыдущий график, если он существует
@@ -495,18 +512,27 @@ function updateDailyChart() {
         window.dailyChart.destroy();
     }
 
-    // Создаем новый график
+    // Создаем новый график с двумя наборами данных
     window.dailyChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: dates.map(date => new Date(date).toLocaleDateString()),
-            datasets: [{
-                label: 'Лучшее время задержки (сек)',
-                data: data,
-                backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
+            datasets: [
+                {
+                    label: 'Лучшее время задержки (сек)',
+                    data: bestTimeData,
+                    backgroundColor: 'rgba(75, 192, 75, 0.6)', // Зеленый цвет
+                    borderColor: 'rgba(75, 192, 75, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Среднее время задержки (сек)',
+                    data: avgTimeData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)', // Синий цвет
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }
+            ]
         },
         options: {
             responsive: true,
