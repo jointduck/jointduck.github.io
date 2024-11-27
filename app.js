@@ -60,9 +60,10 @@ const state = {
 };
 
 // YouTube плеер
-const YOUTUBE_PLAYLIST_ID = 'PLstkrDtqpxiIWWU4ctz1Hg_U_XpUo5zr4';
+const YOUTUBE_PLAYLIST_ID = 'PLRBp0Fe2GpglkzuspoGv-mu7B2ce9_0Fn';
 let player;
 let isPlaying = false;
+let isPlayerReady = false;
 
 // Элементы DOM
 const elements = {
@@ -101,6 +102,7 @@ function onYouTubeIframeAPIReady() {
 
 function onPlayerReady(event) {
     console.log('YouTube player ready');
+    isPlayerReady = true;
 }
 
 function onPlayerStateChange(event) {
@@ -198,7 +200,16 @@ function startBreathingSession() {
     
     // Автоматически включаем музыку при старте первого раунда
     if (state.rounds.current === 1 && !isPlaying) {
-        toggleMusic();
+        if (player && isPlayerReady && typeof player.getPlayerState === 'function') {
+            console.log('Starting music playback');
+            player.playVideo();
+            if (player.getPlayerState() === YT.PlayerState.CUED) {
+                player.setShuffle(true);
+                player.playVideoAt(Math.floor(Math.random() * player.getPlaylist().length));
+            }
+        } else {
+            console.log('Player not ready:', { player: !!player, isPlayerReady, hasGetPlayerState: player && typeof player.getPlayerState === 'function' });
+        }
     }
     
     startBreathingCycle();
