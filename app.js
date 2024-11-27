@@ -3,6 +3,8 @@ tg.expand();
 
 // Функция для добавления поддержки touch-событий
 function addTouchSupport(element, callback) {
+    if (!element) return;
+    
     element.addEventListener('click', callback);
     element.addEventListener('touchstart', function(e) {
         e.preventDefault();
@@ -13,7 +15,7 @@ function addTouchSupport(element, callback) {
 // Состояние приложения
 const state = {
     isBreathing: false,
-    currentPhase: 'idle', // idle, breathing, holding, recovery
+    currentPhase: 'idle', // idle, breathing, holding, recovery, finalHold
     rounds: {
         current: 0,
         total: 3,
@@ -41,7 +43,7 @@ const state = {
 };
 
 // YouTube плеер
-const YOUTUBE_PLAYLIST_ID = 'PLstkrDtqpxiIWWU4ctz1Hg_U_XpUo5zr4'; // Медитативная музыка
+const YOUTUBE_PLAYLIST_ID = 'PLRBp0Fe2GpglkzuspoGv-mu7B2ce9_0Fn';
 let player;
 let isPlaying = false;
 
@@ -70,11 +72,14 @@ function onYouTubeIframeAPIReady() {
 
 function onPlayerReady(event) {
     const musicControl = document.getElementById('musicControl');
-    addTouchSupport(musicControl, toggleMusic);
+    if (musicControl) {
+        addTouchSupport(musicControl, toggleMusic);
+    }
 }
 
 function onPlayerStateChange(event) {
     const musicControl = document.getElementById('musicControl');
+    if (!musicControl) return;
     
     if (event.data === YT.PlayerState.PLAYING) {
         musicControl.classList.add('playing');
@@ -113,7 +118,6 @@ const elements = {
 
 // Инициализация после загрузки DOM
 document.addEventListener('DOMContentLoaded', function() {
-    // Обработчики для кнопок раундов
     const decreaseButton = document.getElementById('decreaseRounds');
     const increaseButton = document.getElementById('increaseRounds');
 
@@ -135,17 +139,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Обработчик для круга дыхания
-    addTouchSupport(elements.breathCircle, handleBreathCircleClick);
+    if (elements.breathCircle) {
+        addTouchSupport(elements.breathCircle, handleBreathCircleClick);
+    }
 
-    // Обработчики для вкладок статистики
     document.querySelectorAll('.stats-tab').forEach(tab => {
         addTouchSupport(tab, (e) => handleStatsTabClick(e));
     });
 
-    // Загрузка сохраненных данных при старте
     loadUserData();
     updateStatsDisplay();
+    updateDailyChart();
     checkAchievements();
 });
 
@@ -177,7 +181,6 @@ function startBreathingCycle() {
 
     state.rounds.breathCount++;
     if (state.rounds.breathCount <= 30) {
-        // Фаза вдоха
         elements.breathCircle.classList.add('breathing-in');
         elements.breathCircle.classList.remove('breathing-out');
         elements.circleText.textContent = `Вдох ${state.rounds.breathCount}/30`;
@@ -185,7 +188,6 @@ function startBreathingCycle() {
         
         setTimeout(() => {
             if (state.currentPhase === 'breathing') {
-                // Фаза выдоха
                 elements.breathCircle.classList.remove('breathing-in');
                 elements.breathCircle.classList.add('breathing-out');
                 elements.circleText.textContent = `Выдох ${state.rounds.breathCount}/30`;
@@ -196,9 +198,9 @@ function startBreathingCycle() {
                     if (state.currentPhase === 'breathing') {
                         startBreathingCycle();
                     }
-                }, 2000); // Длительность выдоха
+                }, 2000);
             }
-        }, 2000); // Длительность вдоха
+        }, 2000);
 
         elements.progressBar.style.width = `${(state.rounds.breathCount/30) * 100}%`;
     } else {
@@ -224,13 +226,27 @@ function finishHoldingPhase() {
     clearInterval(state.timer.interval);
     const holdTime = Math.floor((Date.now() - state.timer.startTime) / 1000);
     
-    updateStats(holdTime);
+    // Добавляем 2 секунды паузы
+    let pauseTime = 2;
+    elements.circleText.textContent = 'Пауза';
+    elements.phaseText.textContent = 'Короткая пауза перед следующей фазой';
+    elements.timer.textContent = formatTime(pauseTime);
     
-    if (state.rounds.current < state.rounds.total) {
-        startRecoveryPhase();
-    } else {
-        finishSession();
-    }
+    const pauseInterval = setInterval(() => {
+        pauseTime--;
+        elements.timer.textContent = formatTime(pauseTime);
+        
+        if (pauseTime <= 0) {
+            clearInterval(pauseInterval);
+            updateStats(holdTime);
+            
+            if (state.rounds.current < state.rounds.total) {
+                startRecoveryPhase();
+            } else {
+                startFinalHold();
+            }
+        }
+    }, 1000);
 }
 
 // Фаза восстановления
@@ -248,11 +264,27 @@ function startRecoveryPhase() {
         
         if (recoveryTime <= 0) {
             clearInterval(recoveryInterval);
-            if (state.rounds.current < state.rounds.total) {
-                startBreathingSession();
-            } else {
-                finishSession();
-            }
+            startBreathingSession();
+        }
+    }, 1000);
+}
+
+// Финальная задержка дыхания
+function startFinalHold() {
+    state.currentPhase = 'finalHold';
+    elements.circleText.textContent = 'Финальная задержка';
+    elements.phaseText.textContent = 'Последняя задержка дыхания на 15 секунд';
+    
+    let finalHoldTime = 15;
+    elements.timer.textContent = formatTime(finalHoldTime);
+    
+    const finalHoldInterval = setInterval(() => {
+        finalHoldTime--;
+        elements.timer.textContent = formatTime(finalHoldTime);
+        
+        if (finalHoldTime <= 0) {
+            clearInterval(finalHoldInterval);
+            finishSession();
         }
     }, 1000);
 }
@@ -322,6 +354,14 @@ function updateStats(holdTime) {
     state.stats.allTime.times.push(holdTime);
     state.stats.allTime.bestTime = Math.max(state.stats.allTime.bestTime, holdTime);
 
+    // Обновление ежедневной статистики для графика
+    const dailyStats = JSON.parse(localStorage.getItem(`wimhof_${tg.initDataUnsafe?.user?.id}_daily`) || '{}');
+    if (!dailyStats[today]) {
+        dailyStats[today] = [];
+    }
+    dailyStats[today].push(holdTime);
+    localStorage.setItem(`wimhof_${tg.initDataUnsafe?.user?.id}_daily`, JSON.stringify(dailyStats));
+
     // Обновление серии дней
     if (state.stats.allTime.lastPractice !== today) {
         const lastDate = new Date(state.stats.allTime.lastPractice);
@@ -338,6 +378,7 @@ function updateStats(holdTime) {
 
     saveUserData();
     updateStatsDisplay();
+    updateDailyChart();
     checkAchievements();
 }
 
@@ -359,6 +400,64 @@ function updateStatsDisplay() {
             : 0
     );
     document.getElementById('streakDays').textContent = state.stats.allTime.streak;
+}
+
+// Обновление графика
+function updateDailyChart() {
+    const dailyStats = JSON.parse(localStorage.getItem(`wimhof_${tg.initDataUnsafe?.user?.id}_daily`) || '{}');
+    const ctx = document.getElementById('dailyStatsChart').getContext('2d');
+    
+    // Получаем последние 7 дней
+    const dates = Object.keys(dailyStats).sort().slice(-7);
+    const data = dates.map(date => {
+        const times = dailyStats[date];
+        return Math.max(...times); // Берем лучший результат за день
+    });
+
+    // Уничтожаем предыдущий график, если он существует
+    if (window.dailyChart) {
+        window.dailyChart.destroy();
+    }
+
+    // Создаем новый график
+    window.dailyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: dates.map(date => new Date(date).toLocaleDateString()),
+            datasets: [{
+                label: 'Лучшее время задержки (сек)',
+                data: data,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Секунды'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Дата'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            }
+        }
+    });
 }
 
 // Проверка достижений
