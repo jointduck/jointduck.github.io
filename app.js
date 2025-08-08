@@ -97,8 +97,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (breathCircle) {
-        addTouchSupport(breathCircle, handleBreathCircleClick);
+        console.log('Setting up click handler for breath circle');
+        // Добавляем оба типа событий для надежности
+        breathCircle.addEventListener('click', handleBreathCircleClick);
+        breathCircle.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleBreathCircleClick();
+        }, { passive: false });
         breathCircle.style.cursor = 'pointer';
+        console.log('Click handler set up for breath circle');
+    } else {
+        console.error('Breath circle element not found!');
     }
 
 
@@ -115,10 +124,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Обработчик нажатия на круг
 function handleBreathCircleClick() {
-    if (state.currentPhase === 'idle') {
+    console.log('Circle clicked, current phase:', state.currentPhase);
+    
+    if (state.currentPhase === 'idle' || state.currentPhase === undefined) {
+        console.log('Starting breathing session');
         startBreathingSession();
     } else if (state.currentPhase === 'holding') {
+        console.log('Finishing holding phase');
         finishHoldingPhase();
+    } else {
+        console.log('Click ignored in phase:', state.currentPhase);
     }
 }
 
@@ -128,22 +143,11 @@ function startBreathingSession() {
     state.rounds.current++;
     state.rounds.breathCount = 0;
     
-    // Автоматически включаем музыку при старте первого раунда
-    if (state.rounds.current === 1 && !isPlaying) {
-        if (player && isPlayerReady && typeof player.getPlayerState === 'function') {
-            console.log('Starting music playback');
-            player.playVideo();
-            if (player.getPlayerState() === YT.PlayerState.CUED) {
-                player.setShuffle(true);
-                player.playVideoAt(Math.floor(Math.random() * player.getPlaylist().length));
-            }
-        } else {
-            console.log('Player not ready:', { player: !!player, isPlayerReady, hasGetPlayerState: player && typeof player.getPlayerState === 'function' });
-        }
-    }
-    
     startBreathingCycle();
     updateRoundsDisplay();
+    
+    // Тактильная обратная связь при старте
+    hapticFeedback('impact', 'light');
 }
 
 // Цикл дыхания
