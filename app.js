@@ -175,58 +175,52 @@ function startBreathingCycle() {
     // Фаза вдоха
     function startInhale() {
         if (state.currentPhase !== 'breathing') return;
-        
-        // Увеличиваем счетчик только в начале вдоха
+
+        // Считаем только до 30 вдохов
         if (state.rounds.breathCount < 30) {
             state.rounds.breathCount++;
             console.log('Breath count:', state.rounds.breathCount);
-            
+
             // Обновляем прогресс-бар
             const progress = Math.min((state.rounds.breathCount / 30) * 100, 100);
             elements.progressBar.style.width = `${progress}%`;
         }
-        
-        const isLastBreath = state.rounds.breathCount >= 30;
-        
+
         elements.breathCircle.classList.add('breathing-in');
         elements.breathCircle.classList.remove('breathing-out');
         elements.circleText.textContent = `Вдох ${Math.min(state.rounds.breathCount, 30)}/30`;
         elements.phaseText.textContent = 'Глубокий вдох через нос';
-        
-        if (isLastBreath) {
-            console.log('Last breath, moving to hold phase');
-            hapticFeedback('impact', 'light');
-            // Даем немного времени на последний вдох
-            setTimeout(() => {
-                if (state.currentPhase === 'breathing') {
-                    startHoldingPhase();
-                }
-            }, 1000);
-            return;
-        }
 
-        // Переход к выдоху через 2 секунды
+        // Через 2 секунды — выдох
         setTimeout(startExhale, 2000);
     }
-    
+
     // Фаза выдоха
     function startExhale() {
         if (state.currentPhase !== 'breathing') return;
-        
+
         elements.breathCircle.classList.remove('breathing-in');
         elements.breathCircle.classList.add('breathing-out');
         elements.circleText.textContent = `Выдох ${state.rounds.breathCount}/30`;
         elements.phaseText.textContent = 'Спокойный выдох через рот';
 
-        // Переход к следующему вдоху через 2 секунды
+        const isLastBreath = state.rounds.breathCount >= 30;
+
+        // Если это последний выдох — идём в задержку
         setTimeout(() => {
-            if (state.currentPhase === 'breathing') {
+            if (state.currentPhase !== 'breathing') return;
+
+            if (isLastBreath) {
+                console.log('Last exhale done, moving to hold phase');
+                hapticFeedback('impact', 'light');
+                startHoldingPhase();
+            } else {
                 startInhale();
             }
         }, 2000);
     }
-    
-    // Начинаем с вдоха
+
+    // Запускаем цикл с вдоха
     startInhale();
 }
 
