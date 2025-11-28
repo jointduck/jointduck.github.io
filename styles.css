@@ -1,3 +1,28 @@
+/* === УМНЫЙ ОТСТУП СВЕРХУ ДЛЯ TELEGRAM WEBAPP === */
+@supports (padding-top: env(safe-area-inset-top)) {
+    body {
+        padding-top: max(20px, env(safe-area-inset-top));
+    }
+}
+
+/* На всякий случай — если Telegram добавит свой top bar в будущем */
+@supports (padding-top: constant(safe-area-inset-top)) {
+    body {
+        padding-top: max(20px, constant(safe-area-inset-top));
+    }
+}
+
+/* Дополнительно чуть подвинем весь контент вниз, чтобы было красиво и на Android */
+.container {
+    padding-top: 30px;     /* ← это главное изменение */
+    padding-bottom: 40px;
+}
+
+/* А сам блок с раундами теперь будет выглядеть идеально */
+.rounds-control {
+    margin: 10px 0 30px 0;  /* вместо 20px 0 было раньше */
+    padding: 0 20px;
+}
 body {
     margin: 0;
     padding: 20px;
