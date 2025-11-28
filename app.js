@@ -349,7 +349,9 @@ function loadData() {
     const saved = localStorage.getItem(`wimhof_${id}`);
     if (saved) {
         const d = JSON.parse(saved);
-        state.rounds.total = d.rounds || 3;
+       state.rounds.total = typeof d.rounds === 'number'
+    ? d.rounds
+    : (d.rounds?.total || 3);
         state.stats.allTime = d.allTime || state.stats.allTime;
     }
 }
