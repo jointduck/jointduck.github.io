@@ -1,649 +1,363 @@
 let tg = window.Telegram.WebApp;
 tg.expand();
 
-// Функция для добавления поддержки touch-событий
-function addTouchSupport(element, callback) {
-    if (!element) return;
-    
-    element.addEventListener('click', callback);
-    element.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        callback(e);
-    }, { passive: false });
-}
-
-// Функция для тактильной обратной связи
-function hapticFeedback(type, intensity = 'light') {
+function haptic(type = 'light') {
     try {
-        if (window.Telegram && window.Telegram.WebApp && 
-            window.Telegram.WebApp.HapticFeedback) {
-            const haptic = window.Telegram.WebApp.HapticFeedback;
-            
-            switch(type) {
-                case 'impact':
-                    if (haptic.impactOccurred) {
-                        haptic.impactOccurred(intensity);
-                    }
-                    break;
-                case 'notification':
-                    if (haptic.notificationOccurred) {
-                        haptic.notificationOccurred(intensity);
-                    }
-                    break;
-                case 'selection':
-                    if (haptic.selectionChanged) {
-                        haptic.selectionChanged();
-                    }
-                    break;
-            }
-        } else {
-            console.log('Haptic feedback not available');
-        }
-    } catch (e) {
-        console.log('Haptic feedback error:', e);
-    }
+        Telegram.WebApp.HapticFeedback.impactOccurred(type);
+    } catch(e) {}
+}
+function successHaptic() {
+    try {
+        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+    } catch(e) {}
 }
 
-// Состояние приложения
+// Состояние
 const state = {
     isBreathing: false,
-    currentPhase: 'idle', // idle, breathing, holding, recovery, finalHold
-    rounds: {
-        current: 0,
-        total: 3,
-        breathCount: 0
-    },
-    timer: {
-        startTime: null,
-        duration: 0,
-        interval: null
-    },
+    currentPhase: 'idle',
+    rounds: { current: 0, total: 3, breathCount: 0 },
+    timer: { startTime: null, interval: null },
     stats: {
-        today: {
-            sessions: 0,
-            bestTime: 0,
-            times: []
-        },
-        allTime: {
-            sessions: 0,
-            bestTime: 0,
-            times: [],
-            streak: 0,
-            lastPractice: null
-        }
-    }
+        today: { sessions: 0, bestTime: 0, times: [] },
+        allTime: { sessions: 0, bestTime: 0, times: [], streak: 0, lastPractice: null }
+    },
+    previousBestAllTime: 0 // для определения нового рекорда
 };
 
-// Элементы DOM
-const elements = {
-    breathCircle: document.getElementById('breathCircle'),
+// DOM
+const el = {
+    circle: document.getElementById('breathCircle'),
     circleText: document.getElementById('circleText'),
-    phaseText: document.getElementById('phaseText'),
+    phase: document.getElementById('phaseText'),
     timer: document.getElementById('timer'),
-    progressBar: document.getElementById('progressBar'),
+    progress: document.getElementById('progressBar'),
     roundsCount: document.getElementById('roundsCount'),
     currentRound: document.getElementById('currentRound'),
     totalRounds: document.getElementById('totalRounds')
 };
 
+document.addEventListener('DOMContentLoaded', () => {
+    // Кнопки раундов
+    document.getElementById('decreaseRounds').onclick = () => {
+        if (state.rounds.total > 1) {
+            state.rounds.total--;
+            updateRounds();
+            save();
+            haptic();
+        }
+    };
+    document.getElementById('increaseRounds').onclick = () => {
+        if (state.rounds.total < 10) {
+            state.rounds.total++;
+            updateRounds();
+            save();
+            haptic();
+        }
+    };
 
+    // Круг дыхания
+    el.circle.onclick = startOrFinishHold;
 
-// Инициализация после загрузки DOM
-document.addEventListener('DOMContentLoaded', function() {
-    const decreaseButton = document.getElementById('decreaseRounds');
-    const increaseButton = document.getElementById('increaseRounds');
-    const breathCircle = document.getElementById('breathCircle');
-    if (decreaseButton && increaseButton) {
-        addTouchSupport(decreaseButton, () => {
-            if (state.rounds.total > 1) {
-                state.rounds.total--;
-                updateRoundsDisplay();
-                saveUserData();
-            }
-        });
-
-        addTouchSupport(increaseButton, () => {
-            if (state.rounds.total < 10) {
-                state.rounds.total++;
-                updateRoundsDisplay();
-                saveUserData();
-            }
-        });
-    }
-
-    if (breathCircle) {
-        console.log('Setting up click handler for breath circle');
-        // Добавляем оба типа событий для надежности
-        breathCircle.addEventListener('click', handleBreathCircleClick);
-        breathCircle.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            handleBreathCircleClick();
-        }, { passive: false });
-        breathCircle.style.cursor = 'pointer';
-        console.log('Click handler set up for breath circle');
-    } else {
-        console.error('Breath circle element not found!');
-    }
-
-
-
+    // Вкладки статистики
     document.querySelectorAll('.stats-tab').forEach(tab => {
-        addTouchSupport(tab, (e) => handleStatsTabClick(e));
+        tab.onclick = () => {
+            document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelectorAll('.stats-content').forEach(c => c.style.display = 'none');
+            document.getElementById('stats' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).style.display = 'block';
+            if (tab.dataset.tab === 'allTime') updateChart();
+        };
     });
 
-    loadUserData();
-    updateStatsDisplay();
-    updateDailyChart();
-    checkAchievements();
+    loadData();
+    resetTodayIfNewDay(); // ← это главное исправление
+    updateAllDisplays();
 });
 
-// Обработчик нажатия на круг
-function handleBreathCircleClick() {
-    console.log('Circle clicked, current phase:', state.currentPhase);
-    
-    if (state.currentPhase === 'idle' || state.currentPhase === undefined) {
-        console.log('Starting breathing session');
-        startBreathingSession();
-    } else if (state.currentPhase === 'holding') {
-        console.log('Finishing holding phase');
-        finishHoldingPhase();
-    } else {
-        console.log('Click ignored in phase:', state.currentPhase);
+function startOrFinishHold() {
+    if (state.currentPhase === 'idle') {
+        startSession();
+    } else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') {
+        finishHold();
     }
 }
 
-// Начало сессии дыхания
-function startBreathingSession() {
-    state.currentPhase = 'breathing';
+function startSession() {
     state.rounds.current++;
     state.rounds.breathCount = 0;
-    
+    state.currentPhase = 'breathing';
+    updateRounds();
     startBreathingCycle();
-    updateRoundsDisplay();
-    
-    // Тактильная обратная связь при старте
-    hapticFeedback('impact', 'light');
+    haptic('medium');
 }
 
-// Цикл дыхания
 function startBreathingCycle() {
-    if (state.currentPhase !== 'breathing') {
-        console.log('Not in breathing phase, current phase:', state.currentPhase);
+    if (state.rounds.breathCount >= 30) {
+        startHold();
         return;
     }
 
-    // Фаза вдоха
-    function startInhale() {
+    // Вдох
+    state.rounds.breathCount++;
+    const progress = (state.rounds.breathCount / 30) * 100;
+    el.progress.style.width = progress + '%';
+
+    el.circle.className = 'breath-circle breathing-in';
+    el.circleText.textContent = `Вдох ${state.rounds.breathCount}/30`;
+    el.phase.textContent = 'Глубокий вдох через нос';
+
+    setTimeout(() => {
         if (state.currentPhase !== 'breathing') return;
+        el.circle.className = 'breath-circle breathing-out';
+        el.circleText.textContent = `Выдох ${state.rounds.breathCount}/30`;
+        el.phase.textContent = 'Спокойный выдох через рот';
 
-        // Считаем только до 30 вдохов
-        if (state.rounds.breathCount < 30) {
-            state.rounds.breathCount++;
-            console.log('Breath count:', state.rounds.breathCount);
-
-            // Обновляем прогресс-бар
-            const progress = Math.min((state.rounds.breathCount / 30) * 100, 100);
-            elements.progressBar.style.width = `${progress}%`;
-        }
-
-        elements.breathCircle.classList.add('breathing-in');
-        elements.breathCircle.classList.remove('breathing-out');
-        elements.circleText.textContent = `Вдох ${Math.min(state.rounds.breathCount, 30)}/30`;
-        elements.phaseText.textContent = 'Глубокий вдох через нос';
-
-        // Через 2 секунды — выдох
-        setTimeout(startExhale, 2000);
-    }
-
-    // Фаза выдоха
-    function startExhale() {
-        if (state.currentPhase !== 'breathing') return;
-
-        elements.breathCircle.classList.remove('breathing-in');
-        elements.breathCircle.classList.add('breathing-out');
-        elements.circleText.textContent = `Выдох ${state.rounds.breathCount}/30`;
-        elements.phaseText.textContent = 'Спокойный выдох через рот';
-
-        const isLastBreath = state.rounds.breathCount >= 30;
-
-        // Если это последний выдох — идём в задержку
         setTimeout(() => {
-            if (state.currentPhase !== 'breathing') return;
-
-            if (isLastBreath) {
-                console.log('Last exhale done, moving to hold phase');
-                hapticFeedback('impact', 'light');
-                startHoldingPhase();
-            } else {
-                startInhale();
-            }
+            if (state.currentPhase === 'breathing') startBreathingCycle();
         }, 2000);
-    }
-
-    // Запускаем цикл с вдоха
-    startInhale();
+    }, 2000);
 }
 
-// Начало фазы задержки дыхания
-function startHoldingPhase() {
-    state.currentPhase = 'holding';
-    elements.breathCircle.classList.remove('breathing-in', 'breathing-out');
-    elements.circleText.textContent = 'Задержка';
-    elements.phaseText.textContent = 'Выдохните и задержите дыхание';
-    hapticFeedback('impact', 'medium'); // Вибрация при начале задержки
-    
+function startHold() {
+    state.currentPhase = state.rounds.current < state.rounds.total ? 'holding' : 'finalHold';
+    el.circle.className = 'breath-circle';
+    el.circleText.textContent = 'Задержка';
+    el.phase.textContent = 'Задержите дыхание после выдоха';
+    el.progress.style.width = '0%';
+
     state.timer.startTime = Date.now();
-    state.timer.interval = setInterval(updateTimer, 1000);
+    state.timer.interval = setInterval(() => {
+        const sec = Math.floor((Date.now() - state.timer.startTime) / 1000);
+        el.timer.textContent = formatTime(sec);
+    }, 200);
+
+    haptic('medium');
 }
 
-// Завершение фазы задержки дыхания
-function finishHoldingPhase() {
-    if (state.currentPhase !== 'holding') return;
-
+function finishHold() {
     clearInterval(state.timer.interval);
     const holdTime = Math.floor((Date.now() - state.timer.startTime) / 1000);
-    hapticFeedback('impact', 'medium'); // Вибрация при окончании задержки
-    updateStats(holdTime);
-    
-    if (state.rounds.current < state.rounds.total) {
-        startRecoveryPhase();
+
+    // Сохраняем результат
+    const today = new Date().toDateString();
+    state.stats.today.sessions++;
+    state.stats.today.times.push(holdTime);
+    state.stats.today.bestTime = Math.max(state.stats.today.bestTime, holdTime);
+
+    state.stats.allTime.sessions++;
+    state.stats.allTime.times.push(holdTime);
+    const newBest = Math.max(state.stats.allTime.bestTime, holdTime);
+    const isNewRecord = newBest > state.stats.allTime.bestTime;
+
+    state.stats.allTime.bestTime = newBest;
+    state.stats.allTime.lastPractice = today;
+
+    // Серия дней
+    if (state.stats.allTime.lastPractice === today && state.stats.allTime.streak === 0) {
+        state.stats.allTime.streak = 1;
     } else {
-        startFinalHold();
+        const daysDiff = Math.floor((new Date() - new Date(state.stats.allTime.lastPractice)) / 86400000);
+        if (daysDiff === 1) state.stats.allTime.streak++;
+        else if (daysDiff > 1) state.stats.allTime.streak = 1;
+    }
+
+    // Уведомления о рекорде
+    if (isNewRecord) {
+        successHaptic();
+        el.phase.textContent = `НОВЫЙ РЕКОРД! ${formatTime(holdTime)} 🎉`;
+        setTimeout(() => { if (state.currentPhase !== 'idle') el.phase.textContent = ''; }, 4000);
+    }
+
+    save();
+    updateStats();
+    updateChart();
+    checkAchievements();
+
+    // Следующий раунд или завершение
+    if (state.rounds.current < state.rounds.total) {
+        recoveryPhase();
+    } else {
+        finishSession();
     }
 }
 
-// Фаза восстановления
-function startRecoveryPhase() {
+function recoveryPhase() {
     state.currentPhase = 'recovery';
-    elements.circleText.textContent = 'Восстановление';
-    
-    // 2 секунды на глубокий вдох
-    let breathInTime = 2;
-    elements.phaseText.textContent = 'Сделайте глубокий вдох';
-    elements.timer.textContent = formatTime(breathInTime);
-    
-    const breathInInterval = setInterval(() => {
-        breathInTime--;
-        elements.timer.textContent = formatTime(breathInTime);
-        
-        if (breathInTime <= 0) {
-            clearInterval(breathInInterval);
-            // 15 секунд задержки
-            let holdTime = 15;
-            elements.phaseText.textContent = 'Задержите дыхание';
-            elements.timer.textContent = formatTime(holdTime);
-            
-            const holdInterval = setInterval(() => {
-                holdTime--;
-                elements.timer.textContent = formatTime(holdTime);
-                
-                if (holdTime <= 0) {
-                    clearInterval(holdInterval);
-                    hapticFeedback('impact', 'medium'); // Вибрация после 15-секундной задержки
-                    
-                    // 2 секунды на выдох
-                    let breathOutTime = 2;
-                    elements.phaseText.textContent = 'Медленно выдохните';
-                    elements.timer.textContent = formatTime(breathOutTime);
-                    
-                    const breathOutInterval = setInterval(() => {
-                        breathOutTime--;
-                        elements.timer.textContent = formatTime(breathOutTime);
-                        
-                        if (breathOutTime <= 0) {
-                            clearInterval(breathOutInterval);
-                            startBreathingSession();
-                        }
-                    }, 1000);
-                }
-            }, 1000);
-        }
-    }, 1000);
+    el.circleText.textContent = 'Восстановление';
+    guidedBreath(2, 'Глубокий вдох', () => {
+        guidedBreath(15, 'Задержите на 15 сек', () => {
+            guidedBreath(2, 'Медленно выдохните', startSession);
+        });
+    });
 }
 
-// Финальная задержка дыхания
-function startFinalHold() {
-    state.currentPhase = 'finalHold';
-    elements.circleText.textContent = 'Восстановление';
-    
-    // 2 секунды на глубокий вдох
-    let breathInTime = 2;
-    elements.phaseText.textContent = 'Сделайте глубокий вдох';
-    elements.timer.textContent = formatTime(breathInTime);
-    
-    const breathInInterval = setInterval(() => {
-        breathInTime--;
-        elements.timer.textContent = formatTime(breathInTime);
-        
-        if (breathInTime <= 0) {
-            clearInterval(breathInInterval);
-            // 15 секунд задержки
-            let holdTime = 15;
-            elements.phaseText.textContent = 'Задержите дыхание';
-            elements.timer.textContent = formatTime(holdTime);
-            
-            const holdInterval = setInterval(() => {
-                holdTime--;
-                elements.timer.textContent = formatTime(holdTime);
-                
-                if (holdTime <= 0) {
-                    clearInterval(holdInterval);
-                    
-                    // 2 секунды на выдох
-                    let breathOutTime = 2;
-                    elements.phaseText.textContent = 'Медленно выдохните';
-                    elements.timer.textContent = formatTime(breathOutTime);
-                    
-                    const breathOutInterval = setInterval(() => {
-                        breathOutTime--;
-                        elements.timer.textContent = formatTime(breathOutTime);
-                        
-                        if (breathOutTime <= 0) {
-                            clearInterval(breathOutInterval);
-                            finishSession();
-                        }
-                    }, 1000);
-                }
-            }, 1000);
-        }
-    }, 1000);
-}
-
-// Завершение сессии
 function finishSession() {
-    hapticFeedback('impact', 'heavy'); // Сильная вибрация при завершении
-    hapticFeedback('notification', 'success'); // Уведомление об успешном завершении
-    
     state.currentPhase = 'idle';
     state.rounds.current = 0;
     state.rounds.breathCount = 0;
-    
-    elements.circleText.textContent = 'Начать';
-    elements.phaseText.textContent = 'Нажмите на круг, чтобы начать';
-    elements.timer.textContent = '00:00';
-    elements.progressBar.style.width = '0%';
-    
-    if (isPlaying) {
-        toggleMusic();
-    }
-    
-    updateRoundsDisplay();
+
+    el.circle.className = 'breath-circle';
+    el.circleText.textContent = 'Начать';
+    el.phase.textContent = 'Сессия завершена! Отличная работа 💙';
+    el.timer.textContent = '00:00';
+    el.progress.style.width = '0%';
+    updateRounds();
+
+    successHaptic();
+    haptic('heavy');
+
+    setTimeout(() => {
+        el.phase.textContent = 'Нажмите на круг, чтобы начать';
+    }, 5000);
 }
 
-// Обновление таймера
-function updateTimer() {
-    const elapsed = Math.floor((Date.now() - state.timer.startTime) / 1000);
-    elements.timer.textContent = formatTime(elapsed);
-}
+// Вспомогательная функция для восстановительного дыхания
+function guidedBreath(seconds, text, callback) {
+    let time = seconds;
+    el.phase.textContent = text;
+    el.timer.textContent = formatTime(time);
 
-// Форматирование времени
-function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}
-
-// Обработчик вкладок статистики
-function handleStatsTabClick(e) {
-    document.querySelectorAll('.stats-tab').forEach(tab => tab.classList.remove('active'));
-    e.target.classList.add('active');
-    
-    document.querySelectorAll('.stats-content').forEach(content => {
-        content.style.display = 'none';
-    });
-    
-    const targetContent = document.getElementById(`stats${e.target.dataset.tab.charAt(0).toUpperCase() + e.target.dataset.tab.slice(1)}`);
-    targetContent.style.display = 'block';
-    
-    // Обновляем график только при переключении на вкладку "За все время"
-    if (e.target.dataset.tab === 'allTime') {
-        updateDailyChart();
-    }
-}
-
-// Обновление отображения раундов
-function updateRoundsDisplay() {
-    elements.roundsCount.textContent = state.rounds.total;
-    elements.currentRound.textContent = state.rounds.current;
-    elements.totalRounds.textContent = state.rounds.total;
-}
-
-// Обновление статистики
-function updateStats(holdTime) {
-    const today = new Date().toDateString();
-    
-    // Обновление дневной статистики
-    state.stats.today.sessions++;
-    state.stats.today.times.push(holdTime);
-    
-    // Обновление общей статистики
-    state.stats.allTime.sessions++;
-    state.stats.allTime.times.push(holdTime);
-    
-    // Обновление лучшего времени
-    state.stats.today.bestTime = Math.max(state.stats.today.bestTime || 0, holdTime);
-    state.stats.allTime.bestTime = Math.max(state.stats.allTime.bestTime || 0, holdTime);
-
-    // Обновление ежедневной статистики для графика
-    const dailyStats = JSON.parse(localStorage.getItem(`wimhof_${tg.initDataUnsafe?.user?.id}_daily`) || '{}');
-    if (!dailyStats[today]) {
-        dailyStats[today] = [];
-    }
-    dailyStats[today].push(holdTime);
-    localStorage.setItem(`wimhof_${tg.initDataUnsafe?.user?.id}_daily`, JSON.stringify(dailyStats));
-
-    // Обновление серии дней
-    const currentDate = new Date(today);
-    
-    if (!state.stats.allTime.lastPractice) {
-        // Первая практика пользователя
-        state.stats.allTime.streak = 1;
-    } else {
-        const lastDate = new Date(state.stats.allTime.lastPractice);
-        const diffDays = Math.floor((currentDate - lastDate) / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 0) {
-            // Та же дата, не обновляем стрик
-        } else if (diffDays === 1) {
-            // Следующий день - увеличиваем стрик
-            state.stats.allTime.streak++;
-        } else if (diffDays > 1) {
-            // Пропустили день - сбрасываем стрик
-            state.stats.allTime.streak = 1;
+    const int = setInterval(() => {
+        time--;
+        el.timer.textContent = formatTime(time);
+        if (time <= 0) {
+            clearInterval(int);
+            haptic();
+            callback();
         }
-    }
-    
-    // Всегда обновляем дату последней практики
-    state.stats.allTime.lastPractice = today;
-
-    // Уведомление о новом рекорде (если текущий результат лучше предыдущего лучшего)
-    if (holdTime > (state.stats.allTime.bestTime || 0)) {
-        hapticFeedback('notification', 'success');
-    }
-
-    saveUserData();
-    updateStatsDisplay();
-    updateDailyChart();
-    checkAchievements();
+    }, 1000);
 }
 
-// Обновление отображения статистики
-function updateStatsDisplay() {
+function formatTime(sec) {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = (sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
+
+function updateRounds() {
+    el.roundsCount.textContent = state.rounds.total;
+    el.currentRound.textContent = state.rounds.current || 0;
+    el.totalRounds.textContent = state.rounds.total;
+}
+
+function updateStats() {
+    const avg = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
+
     document.getElementById('sessionsToday').textContent = state.stats.today.sessions;
     document.getElementById('bestTimeToday').textContent = formatTime(state.stats.today.bestTime);
-    document.getElementById('avgTimeToday').textContent = formatTime(
-        state.stats.today.times.length > 0 
-            ? Math.floor(state.stats.today.times.reduce((a, b) => a + b, 0) / state.stats.today.times.length)
-            : 0
-    );
+    document.getElementById('avgTimeToday').textContent = formatTime(avg(state.stats.today.times));
 
     document.getElementById('totalSessions').textContent = state.stats.allTime.sessions;
     document.getElementById('bestTimeAll').textContent = formatTime(state.stats.allTime.bestTime);
-    document.getElementById('avgTimeAll').textContent = formatTime(
-        state.stats.allTime.times.length > 0 
-            ? Math.floor(state.stats.allTime.times.reduce((a, b) => a + b, 0) / state.stats.allTime.times.length)
-            : 0
-    );
-    document.getElementById('streakDays').textContent = state.stats.allTime.streak;
+    document.getElementById('avgTimeAll').textContent = formatTime(avg(state.stats.allTime.times));
+    document.getElementById('streakDays').textContent = state.stats.allTime.streak || 0;
 }
 
-// Обновление графика
-function updateDailyChart() {
-    const dailyStats = JSON.parse(localStorage.getItem(`wimhof_${tg.initDataUnsafe?.user?.id}_daily`) || '{}');
-    const ctx = document.getElementById('dailyStatsChart').getContext('2d');
+function updateChart() {
+    const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${tg.initDataUnsafe?.user?.id}`) || '{}');
+    const dates = Object.keys(daily).sort().slice(-10);
     
-    // Получаем последние 7 дней
-    const dates = Object.keys(dailyStats).sort().slice(-7);
-    
-    // Подготавливаем данные для обоих наборов
-    const bestTimeData = dates.map(date => {
-        const times = dailyStats[date];
-        return Math.max(...times); // Лучший результат за день
-    });
-
-    const avgTimeData = dates.map(date => {
-        const times = dailyStats[date];
-        return times.length > 0 
-            ? Math.floor(times.reduce((a, b) => a + b, 0) / times.length) 
-            : 0; // Среднее время за день
-    });
-
-    // Уничтожаем предыдущий график, если он существует
-    if (window.dailyChart) {
-        window.dailyChart.destroy();
+    if (dates.length === 0) {
+        document.getElementById('dailyStatsChart').style.display = 'none';
+        return;
     }
+    document.getElementById('dailyStatsChart').style.display = 'block';
 
-    // Создаем новый график с двумя наборами данных
-    window.dailyChart = new Chart(ctx, {
+    const bests = dates.map(d => Math.max(...daily[d]));
+    const avgs = dates.map(d => Math.round(daily[d].reduce((a,b)=>a+b,0)/daily[d].length));
+
+    if (window.chart) window.chart.destroy();
+
+    window.chart = new Chart(document.getElementById('dailyStatsChart'), {
         type: 'bar',
         data: {
-            labels: dates.map(date => new Date(date).toLocaleDateString()),
-            datasets: [
-                {
-                    label: 'Лучшее время задержки (сек)',
-                    data: bestTimeData,
-                    backgroundColor: 'rgba(75, 192, 75, 0.6)', // Зеленый цвет
-                    borderColor: 'rgba(75, 192, 75, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Среднее время задержки (сек)',
-                    data: avgTimeData,
-                    backgroundColor: 'rgba(54, 162, 235, 0.6)', // Синий цвет
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }
-            ]
+            labels: dates.map(d => new Date(d).toLocaleDateString('ru-RU', {day:'numeric', month:'short'})),
+            datasets: [{
+                label: 'Лучшее',
+                data: bests,
+                backgroundColor: 'rgba(76, 175, 80, 0.7)'
+            }, {
+                label: 'Среднее',
+                data: avgs,
+                backgroundColor: 'rgba(33, 150, 243, 0.7)'
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Секунды'
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Дата'
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top'
-                }
-            }
+            scales: { y: { beginAtZero: true } }
         }
     });
 }
 
-// Проверка достижений
 function checkAchievements() {
-    const achievements = [
-        {
-            id: 'firstSession',
-            title: 'Первый шаг',
-            condition: () => state.stats.allTime.sessions === 1,
-            icon: '🎯'
-        },
-        {
-            id: 'tenSessions',
-            title: 'Постоянная практика',
-            condition: () => state.stats.allTime.sessions >= 10,
-            icon: '🌟'
-        },
-        {
-            id: 'threeMinutes',
-            title: 'Мастер задержки',
-            condition: () => state.stats.allTime.bestTime >= 180,
-            icon: '⭐'
-        },
-        {
-            id: 'weekStreak',
-            title: 'Недельный марафон',
-            condition: () => state.stats.allTime.streak >= 7,
-            icon: '🏃'
-        }
+    const list = document.getElementById('achievementsList');
+    list.innerHTML = '';
+
+    const achs = [
+        {id:1, title:'Первая сессия', icon:'🏆', cond:() => state.stats.allTime.sessions >= 1},
+        {id:2, title:'10 сессий', icon:'🔥', cond:() => state.stats.allTime.sessions >= 10},
+        {id:3, title:'3 минуты!', icon:'⏱️', cond:() => state.stats.allTime.bestTime >= 180},
+        {id:4, title:'Неделя подряд', icon:'🏃‍♂️', cond:() => state.stats.allTime.streak >= 7},
+        {id:5, title:'2 минуты', icon:'⭐', cond:() => state.stats.allTime.bestTime >= 120},
+        {id:6, title:'Месяц практики', icon:'🌟', cond:() => state.stats.allTime.sessions >= 30},
     ];
 
-    const achievementsList = document.getElementById('achievementsList');
-    achievementsList.innerHTML = '';
-
-    achievements.forEach(achievement => {
-        if (achievement.condition()) {
-            const achievementElement = document.createElement('div');
-            achievementElement.className = 'achievement';
-            achievementElement.innerHTML = `
-                <div class="achievement-icon">${achievement.icon}</div>
-                <div class="achievement-info">
-                    <div class="achievement-title">${achievement.title}</div>
-                </div>
-            `;
-            achievementsList.appendChild(achievementElement);
+    achs.forEach(a => {
+        if (a.cond()) {
+            list.innerHTML += `
+                <div class="achievement">
+                    <div class="achievement-icon">${a.icon}</div>
+                    <div class="achievement-info">
+                        <div class="achievement-title">${a.title}</div>
+                    </div>
+                </div>`;
         }
     });
 }
 
-// Сохранение данных пользователя
-function saveUserData() {
-    const userId = tg.initDataUnsafe?.user?.id;
-    if (userId) {
-        localStorage.setItem(`wimhof_${userId}`, JSON.stringify({
-            stats: state.stats,
-            rounds: {
-                total: state.rounds.total
-            }
-        }));
+// ======== Сохранение / загрузка ========
+function save() {
+    const id = tg.initDataUnsafe?.user?.id;
+    if (!id) return;
+
+    const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
+    const today = new Date().toDateString();
+    if (!daily[today]) daily[today] = [];
+    // Сохраняем только сегодняшние результаты в daily
+    daily[today] = state.stats.today.times.slice();
+
+    localStorage.setItem(`wimhof_daily_${id}`, JSON.stringify(daily));
+    localStorage.setItem(`wimhof_${id}`, JSON.stringify({
+        rounds: state.rounds.total,
+        allTime: state.stats.allTime
+    }));
+}
+
+function loadData() {
+    const id = tg.initDataUnsafe?.user?.id;
+    if (!id) return;
+
+    const saved = localStorage.getItem(`wimhof_${id}`);
+    if (saved) {
+        const d = JSON.parse(saved);
+        state.rounds.total = d.rounds || 3;
+        state.stats.allTime = d.allTime || state.stats.allTime;
     }
 }
 
-// Загрузка данных пользователя
-function loadUserData() {
-    const userId = tg.initDataUnsafe?.user?.id;
-    if (userId) {
-        const savedData = localStorage.getItem(`wimhof_${userId}`);
-        if (savedData) {
-            const data = JSON.parse(savedData);
-            state.stats = data.stats;
-            state.rounds.total = data.rounds.total;
-            
-            // Проверка и сброс дневной статистики
-            const today = new Date().toDateString();
-            if (state.stats.allTime.lastPractice !== today) {
-                state.stats.today = {
-                    sessions: 0,
-                    bestTime: 0,
-                    times: []
-                };
-            }
-            
-            updateRoundsDisplay();
-        }
+function resetTodayIfNewDay() {
+    const today = new Date().toDateString();
+    if (state.stats.allTime.lastPractice !== today) {
+        state.stats.today = { sessions: 0, bestTime: 0, times: [] };
     }
+}
+
+function updateAllDisplays() {
+    resetTodayIfNewDay();
+    updateRounds();
+    updateStats();
+    updateChart();
+    checkAchievements();
 }
