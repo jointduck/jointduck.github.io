@@ -1,6 +1,13 @@
 let tg = window.Telegram.WebApp;
 tg.expand();
 
+// Автоматически добавляем отступ под верхнюю панель Telegram (на некоторых устройствах)
+if (tg.isVersionAtLeast && tg.isVersionAtLeast('6.0')) {
+    const topInset = tg.viewportStableHeight - tg.viewportHeight;
+    if (topInset > 0) {
+        document.body.style.paddingTop = `${topInset + 20}px`;
+    }
+}
 function haptic(type = 'light') {
     try {
         Telegram.WebApp.HapticFeedback.impactOccurred(type);
