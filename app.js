@@ -182,19 +182,19 @@ function finishHold() {
     checkAchievements();
 
     // Следующий раунд или завершение
-    if (state.rounds.current < state.rounds.total) {
-        recoveryPhase();
+        if (state.rounds.current < state.rounds.total) {
+        recoveryPhase(startSession); // Переход к следующему раунду
     } else {
-        finishSession();
+        recoveryPhase(finishSession); // Завершение сессии после восстановления
     }
 }
 
-function recoveryPhase() {
+function recoveryPhase(nextActionCallback) { // Принимаем функцию, которую нужно вызвать после восстановления
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
     guidedBreath(2, 'Глубокий вдох', () => {
         guidedBreath(15, 'Задержите на 15 сек', () => {
-            guidedBreath(2, 'Медленно выдохните', startSession);
+            guidedBreath(2, 'Медленно выдохните', nextActionCallback); // Вызываем переданную функцию
         });
     });
 }
