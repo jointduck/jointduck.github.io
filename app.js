@@ -1,38 +1,33 @@
 let tg = window.Telegram.WebApp;
 tg.expand();
 
-// Автоматически добавляем отступ под верхнюю панель Telegram (на некоторых устройствах)
+// Отступ под верхнюю панель
 if (tg.isVersionAtLeast && tg.isVersionAtLeast('6.0')) {
     const topInset = tg.viewportStableHeight - tg.viewportHeight;
     if (topInset > 0) {
         document.body.style.paddingTop = `${topInset + 20}px`;
     }
 }
+
 function haptic(type = 'light') {
-    try {
-        Telegram.WebApp.HapticFeedback.impactOccurred(type);
-    } catch(e) {}
+    try { Telegram.WebApp.HapticFeedback.impactOccurred(type); } catch(e) {}
 }
 function successHaptic() {
-    try {
-        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-    } catch(e) {}
+    try { Telegram.WebApp.HapticFeedback.notificationOccurred('success'); } catch(e) {}
 }
 
 // Состояние
 const state = {
-    isBreathing: false,
     currentPhase: 'idle',
     rounds: { current: 0, total: 3, breathCount: 0 },
     timer: { startTime: null, interval: null },
     stats: {
         today: { sessions: 0, bestTime: 0, times: [] },
         allTime: { sessions: 0, bestTime: 0, times: [], streak: 0, lastPractice: null }
-    },
-    previousBestAllTime: 0 // для определения нового рекорда
+    }
 };
 
-// DOM
+// DOM-элементы
 const el = {
     circle: document.getElementById('breathCircle'),
     circleText: document.getElementById('circleText'),
@@ -45,28 +40,18 @@ const el = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Кнопки раундов
     document.getElementById('decreaseRounds').onclick = () => {
-        if (state.rounds.total > 1) {
-            state.rounds.total--;
-            updateRounds();
-            save();
-            haptic();
-        }
+        if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
     };
     document.getElementById('increaseRounds').onclick = () => {
-        if (state.rounds.total < 10) {
-            state.rounds.total++;
-            updateRounds();
-            save();
-            haptic();
-        }
+        if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
     };
 
-    // Круг дыхания
-    el.circle.onclick = startOrFinishHold;
+    el.circle.onclick = () => {
+        if (state.currentPhase === 'idle') startSession();
+        else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
+    };
 
-    // Вкладки статистики
     document.querySelectorAll('.stats-tab').forEach(tab => {
         tab.onclick = () => {
             document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
@@ -78,18 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     loadData();
-    resetTodayIfNewDay(); // ← это главное исправление
+    resetTodayStatsIfNeeded();
     updateAllDisplays();
 });
 
-function startOrFinishHold() {
-    if (state.currentPhase === 'idle') {
-        startSession();
-    } else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') {
-        finishHold();
-    }
-}
-
+// === Основные фазы ===
 function startSession() {
     state.rounds.current++;
     state.rounds.breathCount = 0;
@@ -105,7 +83,6 @@ function startBreathingCycle() {
         return;
     }
 
-    // Вдох
     state.rounds.breathCount++;
     const progress = (state.rounds.breathCount / 30) * 100;
     el.progress.style.width = progress + '%';
@@ -130,8 +107,9 @@ function startHold() {
     state.currentPhase = state.rounds.current < state.rounds.total ? 'holding' : 'finalHold';
     el.circle.className = 'breath-circle';
     el.circleText.textContent = 'Задержка';
-    el.phase.textContent = 'Задержите дыхание после выдоха';
+    el.phase.textContent = 'Выдохните и задержите дыхание';
     el.progress.style.width = '0%';
+    el.timer.textContent = '00:00';
 
     state.timer.startTime = Date.now();
     state.timer.interval = setInterval(() => {
@@ -146,34 +124,40 @@ function finishHold() {
     clearInterval(state.timer.interval);
     const holdTime = Math.floor((Date.now() - state.timer.startTime) / 1000);
 
-    // Сохраняем результат
     const today = new Date().toDateString();
+
+    // === Сегодняшняя статистика ===
     state.stats.today.sessions++;
     state.stats.today.times.push(holdTime);
     state.stats.today.bestTime = Math.max(state.stats.today.bestTime, holdTime);
 
+    // === Общая статистика ===
     state.stats.allTime.sessions++;
     state.stats.allTime.times.push(holdTime);
-    const newBest = Math.max(state.stats.allTime.bestTime, holdTime);
-    const isNewRecord = newBest > state.stats.allTime.bestTime;
+    const wasBest = state.stats.allTime.bestTime;
+    state.stats.allTime.bestTime = Math.max(state.stats.allTime.bestTime, holdTime);
 
-    state.stats.allTime.bestTime = newBest;
-    state.stats.allTime.lastPractice = today;
-
-    // Серия дней
-    if (state.stats.allTime.lastPractice === today && state.stats.allTime.streak === 0) {
+    // === СТРЕЙК ДНЕЙ — ИСПРАВЛЕНО! ===
+    if (!state.stats.allTime.lastPractice) {
         state.stats.allTime.streak = 1;
     } else {
-        const daysDiff = Math.floor((new Date() - new Date(state.stats.allTime.lastPractice)) / 86400000);
-        if (daysDiff === 1) state.stats.allTime.streak++;
-        else if (daysDiff > 1) state.stats.allTime.streak = 1;
+        const daysDiff = Math.round((new Date(today) - new Date(state.stats.allTime.lastPractice)) / 86400000);
+        if (daysDiff === 1) {
+            state.stats.allTime.streak++;
+        } else if (daysDiff > 1) {
+            state.stats.allTime.streak = 1;
+        }
+        // если daysDiff === 0 — ничего не меняем (уже практиковал сегодня)
     }
+    state.stats.allTime.lastPractice = today;
 
-    // Уведомления о рекорде
-    if (isNewRecord) {
+    // === Новый рекорд ===
+    if (holdTime > wasBest) {
         successHaptic();
-        el.phase.textContent = `НОВЫЙ РЕКОРД! ${formatTime(holdTime)} 🎉`;
-        setTimeout(() => { if (state.currentPhase !== 'idle') el.phase.textContent = ''; }, 4000);
+        el.phase.textContent = `НОВЫЙ РЕКОРД! ${formatTime(holdTime)}`;
+        setTimeout(() => {
+            if (state.currentPhase !== 'idle') el.phase.textContent = 'Задержите дыхание после выдоха';
+        }, 4000);
     }
 
     save();
@@ -181,20 +165,20 @@ function finishHold() {
     updateChart();
     checkAchievements();
 
-    // Следующий раунд или завершение
-        if (state.rounds.current < state.rounds.total) {
-        recoveryPhase(startSession); // Переход к следующему раунду
+    // Переход к восстановлению
+    if (state.rounds.current < state.rounds.total) {
+        recoveryPhase(startSession);
     } else {
-        recoveryPhase(finishSession); // Завершение сессии после восстановления
+        recoveryPhase(finishSession);
     }
 }
 
-function recoveryPhase(nextActionCallback) { // Принимаем функцию, которую нужно вызвать после восстановления
+function recoveryPhase(callback) {
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
     guidedBreath(2, 'Глубокий вдох', () => {
         guidedBreath(15, 'Задержите на 15 сек', () => {
-            guidedBreath(2, 'Медленно выдохните', nextActionCallback); // Вызываем переданную функцию
+            guidedBreath(2, 'Медленно выдохните', callback);
         });
     });
 }
@@ -206,7 +190,7 @@ function finishSession() {
 
     el.circle.className = 'breath-circle';
     el.circleText.textContent = 'Начать';
-    el.phase.textContent = 'Сессия завершена! Отличная работа 💙';
+    el.phase.textContent = 'Сессия завершена! Отличная работа';
     el.timer.textContent = '00:00';
     el.progress.style.width = '0%';
     updateRounds();
@@ -219,19 +203,17 @@ function finishSession() {
     }, 5000);
 }
 
-// Вспомогательная функция для восстановительного дыхания
-function guidedBreath(seconds, text, callback) {
-    let time = seconds;
+function guidedBreath(sec, text, cb) {
+    let time = sec;
     el.phase.textContent = text;
     el.timer.textContent = formatTime(time);
-
     const int = setInterval(() => {
         time--;
         el.timer.textContent = formatTime(time);
         if (time <= 0) {
             clearInterval(int);
             haptic();
-            callback();
+            cb();
         }
     }, 1000);
 }
@@ -249,46 +231,47 @@ function updateRounds() {
 }
 
 function updateStats() {
-    const avg = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
+    const avg = arr => arr.length ? Math.round(arr.reduce((a,b) => a+b, 0) / arr.length) : 0;
 
     document.getElementById('sessionsToday').textContent = state.stats.today.sessions;
-    document.getElementById('bestTimeToday').textContent = formatTime(state.stats.today.bestTime);
+    document.getElementById('bestTimeToday').textContent = formatTime(state.stats.today.bestTime || 0);
     document.getElementById('avgTimeToday').textContent = formatTime(avg(state.stats.today.times));
 
     document.getElementById('totalSessions').textContent = state.stats.allTime.sessions;
-    document.getElementById('bestTimeAll').textContent = formatTime(state.stats.allTime.bestTime);
+    document.getElementById('bestTimeAll').textContent = formatTime(state.stats.allTime.bestTime || 0);
     document.getElementById('avgTimeAll').textContent = formatTime(avg(state.stats.allTime.times));
     document.getElementById('streakDays').textContent = state.stats.allTime.streak || 0;
 }
 
 function updateChart() {
-    const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${tg.initDataUnsafe?.user?.id}`) || '{}');
+    const id = tg.initDataUnsafe?.user?.id;
+    if (!id) return;
+    const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
     const dates = Object.keys(daily).sort().slice(-10);
-    
+    const ctx = document.getElementById('dailyStatsChart');
+
     if (dates.length === 0) {
-        document.getElementById('dailyStatsChart').style.display = 'none';
+        ctx.style.display = 'none';
         return;
     }
-    document.getElementById('dailyStatsChart').style.display = 'block';
+    ctx.style.display = 'block';
 
-    const bests = dates.map(d => Math.max(...daily[d]));
-    const avgs = dates.map(d => Math.round(daily[d].reduce((a,b)=>a+b,0)/daily[d].length));
+    const bests = dates.map(d => Math.max(...(daily[d] || [0])));
+    const avgs = dates.map(d => {
+        const times = daily[d] || [];
+        return times.length ? Math.round(times.reduce((a,b)=>a+b,0)/times.length) : 0;
+    });
 
     if (window.chart) window.chart.destroy();
 
-    window.chart = new Chart(document.getElementById('dailyStatsChart'), {
+    window.chart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: dates.map(d => new Date(d).toLocaleDateString('ru-RU', {day:'numeric', month:'short'})),
-            datasets: [{
-                label: 'Лучшее',
-                data: bests,
-                backgroundColor: 'rgba(76, 175, 80, 0.7)'
-            }, {
-                label: 'Среднее',
-                data: avgs,
-                backgroundColor: 'rgba(33, 150, 243, 0.7)'
-            }]
+            datasets: [
+                { label: 'Лучшее', data: bests, backgroundColor: 'rgba(76, 175, 80, 0.7)' },
+                { label: 'Среднее', data: avgs, backgroundColor: 'rgba(33, 150, 243, 0.7)' }
+            ]
         },
         options: {
             responsive: true,
@@ -301,41 +284,34 @@ function updateChart() {
 function checkAchievements() {
     const list = document.getElementById('achievementsList');
     list.innerHTML = '';
-
     const achs = [
-        {id:1, title:'Первая сессия', icon:'🏆', cond:() => state.stats.allTime.sessions >= 1},
-        {id:2, title:'10 сессий', icon:'🔥', cond:() => state.stats.allTime.sessions >= 10},
-        {id:3, title:'3 минуты!', icon:'⏱️', cond:() => state.stats.allTime.bestTime >= 180},
-        {id:4, title:'Неделя подряд', icon:'🏃‍♂️', cond:() => state.stats.allTime.streak >= 7},
-        {id:5, title:'2 минуты', icon:'⭐', cond:() => state.stats.allTime.bestTime >= 120},
-        {id:6, title:'Месяц практики', icon:'🌟', cond:() => state.stats.allTime.sessions >= 30},
+        {title:'Первая сессия', icon:'Trophy', cond:() => state.stats.allTime.sessions >= 1},
+        {title:'10 сессий', icon:'Fire', cond:() => state.stats.allTime.sessions >= 10},
+        {title:'2 минуты', icon:'Star', cond:() => state.stats.allTime.bestTime >= 120},
+        {title:'3 минуты!', icon:'Stopwatch', cond:() => state.stats.allTime.bestTime >= 180},
+        {title:'Неделя подряд', icon:'Running Man', cond:() => state.stats.allTime.streak >= 7},
+        {title:'Месяц практики', icon:'Sparkles', cond:() => state.stats.allTime.sessions >= 30},
     ];
 
     achs.forEach(a => {
         if (a.cond()) {
-            list.innerHTML += `
-                <div class="achievement">
-                    <div class="achievement-icon">${a.icon}</div>
-                    <div class="achievement-info">
-                        <div class="achievement-title">${a.title}</div>
-                    </div>
-                </div>`;
+            list.innerHTML += `<div class="achievement"><div class="achievement-icon">${a.icon}</div><div class="achievement-info"><div class="achievement-title">${a.title}</div></div></div>`;
         }
     });
 }
 
-// ======== Сохранение / загрузка ========
+// === Сохранение ===
 function save() {
     const id = tg.initDataUnsafe?.user?.id;
     if (!id) return;
 
+    // Сохраняем ежедневные результаты для графика
     const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
     const today = new Date().toDateString();
-    if (!daily[today]) daily[today] = [];
-    // Сохраняем только сегодняшние результаты в daily
     daily[today] = state.stats.today.times.slice();
-
     localStorage.setItem(`wimhof_daily_${id}`, JSON.stringify(daily));
+
+    // Основные данные
     localStorage.setItem(`wimhof_${id}`, JSON.stringify({
         rounds: state.rounds.total,
         allTime: state.stats.allTime
@@ -349,14 +325,12 @@ function loadData() {
     const saved = localStorage.getItem(`wimhof_${id}`);
     if (saved) {
         const d = JSON.parse(saved);
-       state.rounds.total = typeof d.rounds === 'number'
-    ? d.rounds
-    : (d.rounds?.total || 3);
-        state.stats.allTime = d.allTime || state.stats.allTime;
+        state.rounds.total = d.rounds || 3;
+        if (d.allTime) state.stats.allTime = d.allTime;
     }
 }
 
-function resetTodayIfNewDay() {
+function resetTodayStatsIfNeeded() {
     const today = new Date().toDateString();
     if (state.stats.allTime.lastPractice !== today) {
         state.stats.today = { sessions: 0, bestTime: 0, times: [] };
@@ -364,7 +338,7 @@ function resetTodayIfNewDay() {
 }
 
 function updateAllDisplays() {
-    resetTodayIfNewDay();
+    resetTodayStatsIfNeeded();
     updateRounds();
     updateStats();
     updateChart();
