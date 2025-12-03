@@ -230,65 +230,87 @@ function updateRounds() {
     el.totalRounds.textContent = state.rounds.total;
 }
 
-function updateStats() {
-    const avg = arr => arr.length ? Math.round(arr.reduce((a,b) => a+b, 0) / arr.length) : 0;
-
-    document.getElementById('sessionsToday').textContent = state.stats.today.sessions;
-    document.getElementById('bestTimeToday').textContent = formatTime(state.stats.today.bestTime || 0);
-    document.getElementById('avgTimeToday').textContent = formatTime(avg(state.stats.today.times));
-
-    document.getElementById('totalSessions').textContent = state.stats.allTime.sessions;
-    document.getElementById('bestTimeAll').textContent = formatTime(state.stats.allTime.bestTime || 0);
-    document.getElementById('avgTimeAll').textContent = formatTime(avg(state.stats.allTime.times));
-    document.getElementById('streakDays').textContent = state.stats.allTime.streak || 0;
-}
-
 function updateChart() {
     const id = tg.initDataUnsafe?.user?.id;
     if (!id) return;
 
     const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
     
-    // ← ВОТ ЭТО ГЛАВНОЕ ИСПРАВЛЕНИЕ
-    const dates = Object.keys(daily)
-        .map(date => ({ 
-            str: date, 
-            timestamp: new Date(date).getTime() 
-        }))
-        .filter(d => !isNaN(d.timestamp))
-        .sort((a, b) => a.timestamp - b.timestamp)
-        .slice(-10)                 // последние 10 дней
-        .map(d => d.str);
+    // Определяем диапазон последних 10 дней (включая сегодня)
+    const today = new Date();
+    const dates = [];
+    const dateObjects = [];
+
+    for (let i = 9; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        const dateStr = date.toDateString();            // например: "Tue Dec 03 2025"
+        dates.push(dateStr);
+        dateObjects.push(date);
+    }
 
     const ctx = document.getElementById('dailyStatsChart');
     if (dates.length === 0) { ctx.style.display = 'none'; return; }
     ctx.style.display = 'block';
 
-    const bests = dates.map(d => Math.max(...(daily[d] || [0])));
-    const avgs = dates.map(d => {
-        const arr = daily[d] || [];
-        return arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
+    const bests = dates.map(d => {
+        const times = daily[d] || [];
+        return times.length ? Math.max(...times) : 0;
     });
+
+    const avgs = dates.map(d => {
+        const times = daily[d] || [];
+        return times.length ? Math.round(times.reduce((a,b) => a+b, 0) / times.length) : 0;
+    });
+
+    // Формируем красивые подписи: 25 ноя, 26 ноя, ..., 3 дек
+    const labels = dateObjects.map(d => 
+        d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+            .replace('.', '') // убираем точку после месяца
+    );
 
     if (window.chart) window.chart.destroy();
 
     window.chart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: dates.map(d => new Date(d).toLocaleDateString('ru-RU', {day:'numeric', month:'short'})),
+            labels: labels,
             datasets: [
-                { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.8)' },
-                { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.6)' }
+                { 
+                    label: 'Лучшее', 
+                    data: bests, 
+                    backgroundColor: 'rgba(0, 212, 255, 0.85)',
+                    borderRadius: 6
+                },
+                { 
+                    label: 'Среднее', 
+                    data: avgs, 
+                    backgroundColor: 'rgba(255, 0, 200, 0.65)',
+                    borderRadius: 6
+                }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true }}
+            scales: {
+                y: { 
+                    beginAtZero: true,
+                    ticks: { 
+                        callback: value => formatTime(value) 
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${formatTime(ctx.parsed.y)}`
+                    }
+                }
+            }
         }
     });
 }
-
 function checkAchievements() {
     const list = document.getElementById('achievementsList');
     list.innerHTML = '';
