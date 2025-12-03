@@ -246,20 +246,28 @@ function updateStats() {
 function updateChart() {
     const id = tg.initDataUnsafe?.user?.id;
     if (!id) return;
-    const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
-    const dates = Object.keys(daily).sort().slice(-10);
-    const ctx = document.getElementById('dailyStatsChart');
 
-    if (dates.length === 0) {
-        ctx.style.display = 'none';
-        return;
-    }
+    const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
+    
+    // ← ВОТ ЭТО ГЛАВНОЕ ИСПРАВЛЕНИЕ
+    const dates = Object.keys(daily)
+        .map(date => ({ 
+            str: date, 
+            timestamp: new Date(date).getTime() 
+        }))
+        .filter(d => !isNaN(d.timestamp))
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(-10)                 // последние 10 дней
+        .map(d => d.str);
+
+    const ctx = document.getElementById('dailyStatsChart');
+    if (dates.length === 0) { ctx.style.display = 'none'; return; }
     ctx.style.display = 'block';
 
     const bests = dates.map(d => Math.max(...(daily[d] || [0])));
     const avgs = dates.map(d => {
-        const times = daily[d] || [];
-        return times.length ? Math.round(times.reduce((a,b)=>a+b,0)/times.length) : 0;
+        const arr = daily[d] || [];
+        return arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
     });
 
     if (window.chart) window.chart.destroy();
@@ -269,14 +277,14 @@ function updateChart() {
         data: {
             labels: dates.map(d => new Date(d).toLocaleDateString('ru-RU', {day:'numeric', month:'short'})),
             datasets: [
-                { label: 'Лучшее', data: bests, backgroundColor: 'rgba(76, 175, 80, 0.7)' },
-                { label: 'Среднее', data: avgs, backgroundColor: 'rgba(33, 150, 243, 0.7)' }
+                { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.8)' },
+                { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.6)' }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true } }
+            scales: { y: { beginAtZero: true }}
         }
     });
 }
