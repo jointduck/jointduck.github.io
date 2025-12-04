@@ -165,69 +165,63 @@ function recoveryPhase(next) {
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
 
-    let stage = 0; // 0 — вдох, 1 — задержка, 2 — выдох
+    // 1. Глубокий вдох — 2 секунды
+    el.phase.textContent = 'Глубокий вдох';
+    el.timer.textContent = '00:02';
+    el.circle.className = 'breath-circle breathing-in';
 
-    const startStage = () => {
-        if (stage === 0) {
-            // 1. ГЛУБОКИЙ ВДОХ — 2 секунды
-            el.phase.textContent = 'Глубокий вдох';
-            el.circle.className = 'breath-circle breathing-in';
-            el.timer.textContent = '00:02';
-            let t = 2;
-            const interval = setInterval(() => {
-                t--;
-                el.timer.textContent = 00:0${t};
-                if (t <= 0) {
-                    clearInterval(interval);
-                    haptic();
-                    stage++;
-                    startStage();
-                }
-            }, 1000);
+    let step = 1;
+    const recoveryTimer = setInterval(() => {
+        const timeLeft = 2 - step;
+        el.timer.textContent = `00:0${timeLeft + 1}`;
 
-        } else if (stage === 1) {
-            // 2. ЗАДЕРЖКА — 15 секунд
+        if (step === 2) {
+            clearInterval(recoveryTimer);
+            haptic();
+
+            // 2. Задержка 15 секунд
             el.phase.textContent = 'Задержите на 15 сек';
             el.circle.className = 'breath-circle';
             el.circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            el.timer.textContent = '00:15';
-            let t = 15;
-            const interval = setInterval(() => {
-                t--;
-                el.timer.textContent = formatTime(t);
-                if (t <= 0) {
-                    clearInterval(interval);
-                    haptic();
-                    stage++;
-                    startStage();
-                }
-            }, 1000);
+            let hold = 15;
+            el.timer.textContent = formatTime(hold);
 
-        } else if (stage === 2) {
-            // 3. МЕДЛЕННЫЙ ВЫДОХ — 2 секунды
-            el.phase.textContent = 'Медленный выдох';
-            el.circle.className = 'breath-circle breathing-out';
-            el.timer.textContent = '00:02';
-            let t = 2;
-            const interval = setInterval(() => {
-                t--;
-                el.timer.textContent = 00:0${t};
-                if (t <= 0) {
-                    clearInterval(interval);
+            const holdInterval = setInterval(() => {
+                hold--;
+                el.timer.textContent = formatTime(hold);
+                if (hold <= 0) {
+                    clearInterval(holdInterval);
                     haptic();
 
-                    // Возврат в исходное состояние
-                    el.circle.className = 'breath-circle';
-                    el.circle.style.background = '';
-                    el.timer.textContent = '00:00';
-                    next();
+                    // 3. Медленный выдох — 2 секунды
+                    el.phase.textContent = 'Медленный выдох';
+                    el.circle.className = 'breath-circle breathing-out';
+                    let exhale = 2;
+                    el.timer.textContent =old--;
+          
+
+                    const exhaleInterval = setInterval(() => {
+                        exhale--;
+                        el.timer.textContent =2 секунды
+    el.
+                        if (exhale <= 0) {
+                            clearInterval(exhaleInterval);
+                            haptic();
+
+                            // Возвращаем всё в исходное состояние
+                            el.circle.className = 'breath-circle';
+                            el.circle.style.background = '';
+                            el.timer.textContent = '00:00';
+                            next();
+                        }
+                    }, 1000);
                 }
             }, 1000);
         }
-    };
-
-    startStage(); // Запускаем
+        step++;
+    }, 1000);
 }
+
 
 function guidedBreath(sec, text, cb) {
     let t = sec;
