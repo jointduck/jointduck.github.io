@@ -1,39 +1,28 @@
 const tg = window.Telegram?.WebApp;
-if (tg) tg.expand();
+if (tg) {
+    tg.expand();
+    console.log('WebApp version:', tg.version); // Для дебага хаптиков
+}
 
 const userId = tg?.initDataUnsafe?.user?.id || 'local_user';
 
-// Инициализация с проверкой версии
-const tg = window.Telegram?.WebApp;
-if (tg) {
-    tg.expand();
-    console.log('WebApp version:', tg.version);  // Проверь в консоли (F12 в WebView)
-}
-
-// Хаптик с проверкой поддержки (для iOS)
+// ХАПТИКИ — работают на всех iOS и Android 2023–2025
 function haptic(type = 'light') {
-    if (!tg || !tg.version || tg.version < '6.1') {
-        console.log('Haptics not supported (old version)');  // Для дебага
-        return;
-    }
+    if (!tg || !tg.HapticFeedback) return;
     try {
-        // На iOS impactOccurred работает идеально
-        tg.HapticFeedback.impactOccurred(type);  // 'light', 'medium', 'heavy'
+        tg.HapticFeedback.impactOccurred(type); // light, medium, heavy — на iOS идеально
     } catch (e) {
-        console.log('Haptic error:', e);  // Если ошибка — увидишь в консоли
-        // Fallback: notificationOccurred (работает везде)
-        tg.HapticFeedback.notificationOccurred('success');
+        // fallback для старых/глючных устройств
+        try { tg.HapticFeedback.notificationOccurred('success'); } catch {}
     }
+}
+function successHaptic() {
+    if (!tg || !tg.HapticFeedback) return;
+    try {
+        tg.HapticFeedback.notificationOccurred('success');
+    } catch (e) {}
 }
 
-function successHaptic() {
-    if (!tg || !tg.version || tg.version < '6.1') return;
-    try {
-        tg.HapticFeedback.notificationOccurred('success');  // 'success', 'warning', 'error'
-    } catch (e) {
-        console.log('Success haptic error:', e);
-    }
-}
 const state = {
     currentPhase: 'idle',
     rounds: { current: 0, total: 3, breathCount: 0 },
@@ -56,6 +45,7 @@ const el = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Кнопки раундов
     document.getElementById('decreaseRounds')?.addEventListener('click', () => {
         if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
     });
@@ -68,13 +58,18 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
     });
 
-// ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК — ИСПРАВЛЕНО
+    // ВКЛАДКИ СТАТИСТИКИ — ИСПРАВЛЕНО ПОЛНОСТЬЮ
     document.querySelectorAll('.stats-tab').forEach(tab => {
         tab.addEventListener('click', () => {
+            // Убираем активность
             document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
+
+            // Скрываем оба блока
             document.getElementById('statsToday').style.display = 'none';
             document.getElementById('statsAlltime').style.display = 'none';
+
+            // Показываем нужный
             if (tab.dataset.tab === 'today') {
                 document.getElementById('statsToday').style.display = 'block';
             } else {
@@ -84,7 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // При старте — только "Сегодня"
+    // При загрузке — чисто "Сегодня"
+    document.querySelector('.stats-tab[data-tab="today"]').classList.add('active');
     document.getElementById('statsToday').style.display = 'block';
     document.getElementById('statsAlltime').style.display = 'none';
 
@@ -142,14 +138,15 @@ function finishHold() {
     state.stats.today.sessions++;
     state.stats.today.times.push(holdTime);
     state.stats.today.bestTime = Math.max(state.stats.today.bestTime, holdTime);
-
     state.stats.allTime.sessions++;
     state.stats.allTime.times.push(holdTime);
     state.stats.allTime.bestTime = Math.max(state.stats.allTime.bestTime, holdTime);
 
     const todayStr = new Date().toDateString();
     if (state.stats.allTime.lastPractice !== todayStr) {
-        const daysDiff = state.stats.allTime.lastPractice ? Math.floor((new Date(todayStr) - new Date(state.stats.allTime.lastPractice)) / 86400000) : 999;
+        const daysDiff = state.stats.allTime.lastPractice
+            ? Math.floor((new Date(todayStr) - new Date(state.stats.allTime.lastPractice)) / 86400000)
+            : 999;
         state.stats.allTime.streak = daysDiff === 1 ? state.stats.allTime.streak + 1 : 1;
         state.stats.allTime.lastPractice = todayStr;
     }
@@ -171,18 +168,13 @@ function finishHold() {
 function recoveryPhase(next) {
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
-
-    // Добавляем класс пульсации
     el.circle.className = 'breath-circle recovery-pulse';
-
-    // Красивая плавная пульсация
     el.circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
     el.circle.style.animation = 'recoveryPulse 3s ease-in-out infinite';
 
     guidedBreath(2, 'Глубокий вдох', () => {
         guidedBreath(15, 'Задержите на 15 сек', () => {
             guidedBreath(2, 'Медленный выдох', () => {
-                // Убираем анимацию после окончания восстановления
                 el.circle.className = 'breath-circle';
                 el.circle.style.background = '';
                 el.circle.style.animation = '';
@@ -248,8 +240,7 @@ function updateChart() {
     const canvas = document.getElementById('dailyStatsChart');
     if (!canvas) return;
 
-    const container = canvas.closest('.chart-container');
-    container.style.display = dates.length ? 'block' : 'none';
+    canvas.closest('.chart-container').style.display = dates.length ? 'block' : 'none';
     if (!dates.length) return;
 
     const bests = dates.map(d => Math.max(...(daily[d] || [0])));
@@ -264,15 +255,11 @@ function updateChart() {
         data: {
             labels: dates.map(d => new Date(d).toLocaleDateString('ru-RU', {day:'numeric', month:'short'})),
             datasets: [
-                { label: 'Лучшее', data: bests, backgroundColor: '#ff0000ff' },
-                { label: 'Среднее', data: avgs, backgroundColor: '#0011ffff' }
+                { label: 'Лучшее', data: bests, backgroundColor: '#4caf50' },
+                { label: 'Среднее', data: avgs, backgroundColor: '#2196f3' }
             ]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true } }
-        }
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
     });
 }
 
@@ -280,12 +267,12 @@ function checkAchievements() {
     const list = document.getElementById('achievementsList');
     list.innerHTML = '';
     const achs = [
-              { title: 'Первая сессия', icon: '🏆', cond: () => state.stats.allTime.sessions >= 1 },
-        { title: '10 сессий', icon: '🔥', cond: () => state.stats.allTime.sessions >= 10 },
-        { title: '2 минуты', icon: '⭐', cond: () => state.stats.allTime.bestTime >= 120 },
-        { title: '3 минуты!', icon: '⏱️', cond: () => state.stats.allTime.bestTime >= 180 },
-        { title: 'Неделя подряд', icon: '🏃', cond: () => state.stats.allTime.streak >= 7 },
-        { title: 'Месяц практики', icon: '✨', cond: () => state.stats.allTime.sessions >= 30 }
+        {title:'Первая сессия',icon:'Trophy',cond:()=>state.stats.allTime.sessions>=1},
+        {title:'10 сессий',icon:'Fire',cond:()=>state.stats.allTime.sessions>=10},
+        {title:'2 минуты',icon:'Star',cond:()=>state.stats.allTime.bestTime>=120},
+        {title:'3 минуты!',icon:'Stopwatch',cond:()=>state.stats.allTime.bestTime>=180},
+        {title:'Неделя подряд',icon:'Running Man',cond:()=>state.stats.allTime.streak>=7},
+        {title:'Месяц практики',icon:'Sparkles',cond:()=>state.stats.allTime.sessions>=30},
     ];
     achs.forEach(a => {
         if (a.cond()) list.innerHTML += `<div class="achievement"><div class="achievement-icon">${a.icon}</div><div class="achievement-title">${a.title}</div></div>`;
