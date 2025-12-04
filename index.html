@@ -4,6 +4,20 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Дыхание по Виму Хофу</title>
+
+    <!-- ЭТО ГЛАВНОЕ — свежий SDK с поддержкой хаптиков (2025 год) -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Опционально, но лучше добавить — форсит последнюю версию -->
+    <script>
+        // Принудительно обновляем SDK до актуальной версии (на декабрь 2025 — 8.0+)
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+            console.log('TG WebApp version:', window.Telegram.WebApp.version);
+        }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -56,3 +70,4 @@
     <script src="app.js"></script>
 </body>
 </html>
+
