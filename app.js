@@ -165,38 +165,68 @@ function recoveryPhase(next) {
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
 
-    // 1. Глубокий вдох (2 сек)
-    el.phase.textContent = 'Глубокий вдох';
-    el.circle.className = 'breath-circle breathing-in';
-    setTimeout(() => {
-        // 2. Задержка 15 сек (круг статичный, просто красивый градиент)
-        el.phase.textContent = 'Задержите на 15 сек';
-        el.circle.className = 'breath-circle';
-        el.circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    let stage = 0; // 0 — вдох, 1 — задержка, 2 — выдох
 
-        let delay = 15;
-        const countdown = setInterval(() => {
-            el.timer.textContent = formatTime(delay);
-            delay--;
-            if (delay < 0) {
-                clearInterval(countdown);
-                haptic();
+    const startStage = () => {
+        if (stage === 0) {
+            // 1. ГЛУБОКИЙ ВДОХ — 2 секунды
+            el.phase.textContent = 'Глубокий вдох';
+            el.circle.className = 'breath-circle breathing-in';
+            el.timer.textContent = '00:02';
+            let t = 2;
+            const interval = setInterval(() => {
+                t--;
+                el.timer.textContent = 00:0${t};
+                if (t <= 0) {
+                    clearInterval(interval);
+                    haptic();
+                    stage++;
+                    startStage();
+                }
+            }, 1000);
 
-                // 3. Медленный выдох (2 сек)
-                el.phase.textContent = 'Медленный выдох';
-                el.circle.className = 'breath-circle breathing-out';
-                el.timer.textContent = '02:00';
+        } else if (stage === 1) {
+            // 2. ЗАДЕРЖКА — 15 секунд
+            el.phase.textContent = 'Задержите на 15 сек';
+            el.circle.className = 'breath-circle';
+            el.circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            el.timer.textContent = '00:15';
+            let t = 15;
+            const interval = setInterval(() => {
+                t--;
+                el.timer.textContent = formatTime(t);
+                if (t <= 0) {
+                    clearInterval(interval);
+                    haptic();
+                    stage++;
+                    startStage();
+                }
+            }, 1000);
 
-                setTimeout(() => {
-                    // Возвращаем обычный вид и переходим дальше
+        } else if (stage === 2) {
+            // 3. МЕДЛЕННЫЙ ВЫДОХ — 2 секунды
+            el.phase.textContent = 'Медленный выдох';
+            el.circle.className = 'breath-circle breathing-out';
+            el.timer.textContent = '00:02';
+            let t = 2;
+            const interval = setInterval(() => {
+                t--;
+                el.timer.textContent = 00:0${t};
+                if (t <= 0) {
+                    clearInterval(interval);
+                    haptic();
+
+                    // Возврат в исходное состояние
                     el.circle.className = 'breath-circle';
                     el.circle.style.background = '';
                     el.timer.textContent = '00:00';
                     next();
-                }, 2000);
-            }
-        }, 1000);
-    }, 2000);
+                }
+            }, 1000);
+        }
+    };
+
+    startStage(); // Запускаем
 }
 
 function guidedBreath(sec, text, cb) {
