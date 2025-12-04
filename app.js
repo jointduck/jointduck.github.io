@@ -36,7 +36,7 @@ const el = {
     totalRounds: document.getElementById('totalRounds')
 };
 
-// === ВСЕ ФУНКЦИИ ===
+// === УТИЛИТЫ ===
 function formatTime(sec) {
     const m = Math.floor(sec / 60).toString().padStart(2, '0');
     const s = (sec % 60).toString().padStart(2, '0');
@@ -89,7 +89,6 @@ function updateChart() {
 
     const chartEl = document.getElementById('dailyStatsChart');
     chartEl.style.display = 'block';
-
     if (window.chart) window.chart.destroy();
 
     window.chart = new Chart(chartEl, {
@@ -104,19 +103,8 @@ function updateChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { callback: value => formatTime(value) }
-                }
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `${ctx.dataset.label}: ${formatTime(ctx.parsed.y)}`
-                    }
-                }
-            }
+            scales: { y: { beginAtZero: true, ticks: { callback: v => formatTime(v) } } },
+            plugins: { tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatTime(ctx.parsed.y)}` } } }
         }
     });
 }
@@ -178,7 +166,7 @@ function updateAllDisplays() {
     checkAchievements();
 }
 
-// === Основные фазы ===
+// === ФАЗЫ ДЫХАНИЯ ===
 function startSession() {
     state.rounds.current++;
     state.rounds.breathCount = 0;
@@ -230,15 +218,18 @@ function finishHold() {
     const holdTime = Math.floor((Date.now() - state.timer.startTime) / 1000);
     const today = new Date().toDateString();
 
+    // Сегодня
     state.stats.today.sessions++;
     state.stats.today.times.push(holdTime);
     state.stats.today.bestTime = Math.max(state.stats.today.bestTime, holdTime);
 
+    // Все время
     state.stats.allTime.sessions++;
     state.stats.allTime.times.push(holdTime);
     const wasBest = state.stats.allTime.bestTime;
     state.stats.allTime.bestTime = Math.max(state.stats.allTime.bestTime, holdTime);
 
+    // Стрейк
     if (!state.stats.allTime.lastPractice || state.stats.allTime.lastPractice !== today) {
         const diff = state.stats.allTime.lastPractice
             ? Math.round((new Date(today) - new Date(state.stats.allTime.lastPractice)) / 86400000)
@@ -312,7 +303,7 @@ function guidedBreath(sec, text, cb) {
     }, 1000);
 }
 
-// === ЗАПУСК ПРИЛОЖЕНИЯ (ВСЁ В КОНЦЕ!) ===
+// === ЗАПУСК ===
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('decreaseRounds')?.addEventListener('click', () => {
         if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
