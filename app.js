@@ -149,7 +149,25 @@ function finishHold() {
 function recoveryPhase(next) {
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
-    guidedBreath(2, 'Глубокий вдох', () => guidedBreath(15, 'Задержите на 15 сек', () => guidedBreath(2, 'Медленный выдох', next)));
+
+    // Добавляем класс пульсации
+    el.circle.className = 'breath-circle recovery-pulse';
+
+    // Красивая плавная пульсация
+    el.circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    el.circle.style.animation = 'recoveryPulse 3s ease-in-out infinite';
+
+    guidedBreath(2, 'Глубокий вдох', () => {
+        guidedBreath(15, 'Задержите на 15 сек', () => {
+            guidedBreath(2, 'Медленный выдох', () => {
+                // Убираем анимацию после окончания восстановления
+                el.circle.className = 'breath-circle';
+                el.circle.style.background = '';
+                el.circle.style.animation = '';
+                next();
+            });
+        });
+    });
 }
 
 function guidedBreath(sec, text, cb) {
