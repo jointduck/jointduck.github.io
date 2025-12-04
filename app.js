@@ -165,60 +165,38 @@ function recoveryPhase(next) {
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
 
-    // 1. Глубокий вдох — 2 секунды
+    // 1. Глубокий вдох (2 сек)
     el.phase.textContent = 'Глубокий вдох';
-    el.timer.textContent = '00:02';
     el.circle.className = 'breath-circle breathing-in';
+    setTimeout(() => {
+        // 2. Задержка 15 сек (круг статичный, просто красивый градиент)
+        el.phase.textContent = 'Задержите на 15 сек';
+        el.circle.className = 'breath-circle';
+        el.circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
 
-    let step = 1;
-    const recoveryTimer = setInterval(() => {
-        const timeLeft = 2 - step;
-        el.timer.textContent = `00:0${timeLeft + 1}`;
+        let delay = 15;
+        const countdown = setInterval(() => {
+            el.timer.textContent = formatTime(delay);
+            delay--;
+            if (delay < 0) {
+                clearInterval(countdown);
+                haptic();
 
-        if (step === 2) {
-            clearInterval(recoveryTimer);
-            haptic();
+                // 3. Медленный выдох (2 сек)
+                el.phase.textContent = 'Медленный выдох';
+                el.circle.className = 'breath-circle breathing-out';
+                el.timer.textContent = '02:00';
 
-            // 2. Задержка 15 секунд
-            el.phase.textContent = 'Задержите на 15 сек';
-            el.circle.className = 'breath-circle';
-            el.circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            let hold = 15;
-            el.timer.textContent = formatTime(hold);
-
-            const holdInterval = setInterval(() => {
-                hold--;
-                el.timer.textContent = formatTime(hold);
-                if (hold <= 0) {
-                    clearInterval(holdInterval);
-                    haptic();
-
-                    // 3. Медленный выдох — 2 секунды
-                    el.phase.textContent = 'Медленный выдох';
-                    el.circle.className = 'breath-circle breathing-out';
-                    let exhale = 2;
-                    el.timer.textContent =old--;
-          
-
-                    const exhaleInterval = setInterval(() => {
-                        exhale--;
-                        el.timer.textContent =2 секунды
-                        if (exhale <= 0) {
-                            clearInterval(exhaleInterval);
-                            haptic();
-
-                            // Возвращаем всё в исходное состояние
-                            el.circle.className = 'breath-circle';
-                            el.circle.style.background = '';
-                            el.timer.textContent = '00:00';
-                            next();
-                        }
-                    }, 1000);
-                }
-            }, 1000);
-        }
-        step++;
-    }, 1000);
+                setTimeout(() => {
+                    // Возвращаем обычный вид и переходим дальше
+                    el.circle.className = 'breath-circle';
+                    el.circle.style.background = '';
+                    el.timer.textContent = '00:00';
+                    next();
+                }, 2000);
+            }
+        }, 1000);
+    }, 2000);
 }
 
 
