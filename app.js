@@ -165,33 +165,6 @@ function updateAllDisplays() {
     checkAchievements();
 }
 
-// === Инициализация ===
-document.addEventListener('DOMContentLoaded', () => {
-    // Кнопки раундов
-    document.getElementById('decreaseRounds').onclick = () => {
-        if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
-    };
-    document.getElementById('increaseRounds').onclick = () => {
-        if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
-    };
-
-    // Клик по кругу
-    el.circle.onclick = () => {
-        if (state.currentPhase === 'idle') startSession();
-        else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
-    };
-
-    // Вкладки статистики
-    document.querySelectorAll('.stats-tab').forEach(tab => {
-        tab.onclick = () => {
-            document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            document.querySelectorAll('.stats-content').forEach(c => c.style.display = 'none');
-            document.getElementById('stats' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).style.display = 'block';
-            if (tab.dataset.tab === 'allTime') updateChart();
-        };
-    });
-
     loadData();
     updateAllDisplays();
 });
@@ -271,3 +244,29 @@ function finishHold() {
         if (diff === 1) state.stats.allTime.streak++;
         else if (diff > 1) state.stats.allTime.streak = 1;
         else state.stats.allTime.st
+        // === Инициализация ===
+document.addEventListener('DOMContentLoaded', () => {
+    // Кнопки раундов
+    document.getElementById('decreaseRounds').onclick = () => {
+        if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
+    };
+    document.getElementById('increaseRounds').onclick = () => {
+        if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
+    };
+
+    // Клик по кругу
+    el.circle.onclick = () => {
+        if (state.currentPhase === 'idle') startSession();
+        else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
+    };
+
+    // Вкладки статистики
+    document.querySelectorAll('.stats-tab').forEach(tab => {
+        tab.onclick = () => {
+            document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelectorAll('.stats-content').forEach(c => c.style.display = 'none');
+            document.getElementById('stats' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).style.display = 'block';
+            if (tab.dataset.tab === 'allTime') updateChart();
+        };
+    });
