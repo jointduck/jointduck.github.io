@@ -4,19 +4,12 @@ if (tg) tg.expand();
 const userId = tg?.initDataUnsafe?.user?.id || 'local_user';
 
 function haptic(type = 'light') {
-    if (tg) {
-        try { tg.HapticFeedback.impactOccurred(type); } catch (e) {}
-    } else if (navigator.vibrate) {
-        navigator.vibrate(type === 'heavy' ? 100 : type === 'medium' ? 70 : 30);
-    }
+    if (tg) try { tg.HapticFeedback.impactOccurred(type); } catch(e) {}
+    else if (navigator.vibrate) navigator.vibrate(type === 'heavy' ? 100 : 70);
 }
-
 function successHaptic() {
-    if (tg) {
-        try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {}
-    } else if (navigator.vibrate) {
-        navigator.vibrate([100, 50, 100]);
-    }
+    if (tg) try { tg.HapticFeedback.notificationOccurred('success'); } catch(e) {}
+    else if (navigator.vibrate) navigator.vibrate([100,50,100]);
 }
 
 const state = {
@@ -41,36 +34,37 @@ const el = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Кнопки раундов
     document.getElementById('decreaseRounds')?.addEventListener('click', () => {
-        if (state.rounds.total > 1) {
-            state.rounds.total--;
-            updateRounds();
-            save();
-            haptic();
-        }
+        if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
     });
-
     document.getElementById('increaseRounds')?.addEventListener('click', () => {
-        if (state.rounds.total < 10) {
-            state.rounds.total++;
-            updateRounds();
-            save();
-            haptic();
-        }
+        if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
     });
 
+    // Главный круг
     el.circle.addEventListener('click', () => {
         if (state.currentPhase === 'idle') startSession();
         else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
     });
 
+    // Вкладки статистики — ЭТО ГЛАВНОЕ ИСПРАВЛЕНИЕ
     document.querySelectorAll('.stats-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            document.querySelectorAll('.stats-content').forEach(c => c.style.display = 'none');
-            document.getElementById('stats' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).style.display = 'block';
-            if (tab.dataset.tab === 'allTime') updateChart();
+
+            // Скрываем оба блока
+            document.getElementById('statsToday').style.display = 'none';
+            document.getElementById('statsAlltime').style.display = 'none';
+
+            // Показываем нужный
+            if (tab.dataset.tab === 'today') {
+                document.getElementById('statsToday').style.display = 'block';
+            } else {
+                document.getElementById('statsAlltime').style.display = 'block';
+                updateChart(); // ← график только тут
+            }
         });
     });
 
@@ -89,10 +83,7 @@ function startSession() {
 }
 
 function startBreathingCycle() {
-    if (state.rounds.breathCount >= 30) {
-        startHold();
-        return;
-    }
+    if (state.rounds.breathCount >= 30) { startHold(); return; }
     state.rounds.breathCount++;
     el.progress.style.width = (state.rounds.breathCount / 30 * 100) + '%';
 
@@ -105,10 +96,7 @@ function startBreathingCycle() {
         el.circle.className = 'breath-circle breathing-out';
         el.circleText.textContent = `Выдох ${state.rounds.breathCount}/30`;
         el.phase.textContent = 'Спокойный выдох через рот';
-
-        setTimeout(() => {
-            if (state.currentPhase === 'breathing') startBreathingCycle();
-        }, 2000);
+        setTimeout(() => { if (state.currentPhase === 'breathing') startBreathingCycle(); }, 2000);
     }, 2000);
 }
 
@@ -122,8 +110,7 @@ function startHold() {
 
     state.timer.startTime = Date.now();
     state.timer.interval = setInterval(() => {
-        const sec = Math.floor((Date.now() - state.timer.startTime) / 1000);
-        el.timer.textContent = formatTime(sec);
+        el.timer.textContent = formatTime(Math.floor((Date.now() - state.timer.startTime) / 1000));
     }, 200);
 }
 
@@ -142,8 +129,7 @@ function finishHold() {
 
     const todayStr = new Date().toDateString();
     if (state.stats.allTime.lastPractice !== todayStr) {
-        const prev = state.stats.allTime.lastPractice;
-        const daysDiff = prev ? Math.floor((new Date(todayStr) - new Date(prev)) / 86400000) : 999;
+        const daysDiff = state.stats.allTime.lastPractice ? Math.floor((new Date(todayStr) - new Date(state.stats.allTime.lastPractice)) / 86400000) : 999;
         state.stats.allTime.streak = daysDiff === 1 ? state.stats.allTime.streak + 1 : 1;
         state.stats.allTime.lastPractice = todayStr;
     }
@@ -159,35 +145,23 @@ function finishHold() {
     updateChart();
     checkAchievements();
 
-    if (state.rounds.current < state.rounds.total) {
-        recoveryPhase(startSession);
-    } else {
-        recoveryPhase(finishSession);
-    }
+    state.rounds.current < state.rounds.total ? recoveryPhase(startSession) : recoveryPhase(finishSession);
 }
 
 function recoveryPhase(next) {
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
-    guidedBreath(2, 'Глубокий вдох', () => {
-        guidedBreath(15, 'Задержите на 15 сек', () => {
-            guidedBreath(2, 'Медленный выдох', next);
-        });
-    });
+    guidedBreath(2, 'Глубокий вдох', () => guidedBreath(15, 'Задержите на 15 сек', () => guidedBreath(2, 'Медленный выдох', next)));
 }
 
 function guidedBreath(sec, text, cb) {
     let t = sec;
     el.phase.textContent = text;
     el.timer.textContent = formatTime(t);
-    const interval = setInterval(() => {
+    const int = setInterval(() => {
         t--;
         el.timer.textContent = formatTime(t);
-        if (t <= 0) {
-            clearInterval(interval);
-            haptic();
-            cb();
-        }
+        if (t <= 0) { clearInterval(int); haptic(); cb(); }
     }, 1000);
 }
 
@@ -236,7 +210,8 @@ function updateChart() {
     const canvas = document.getElementById('dailyStatsChart');
     if (!canvas) return;
 
-    canvas.closest('.chart-container').style.display = dates.length ? 'block' : 'none';
+    const container = canvas.closest('.chart-container');
+    container.style.display = dates.length ? 'block' : 'none';
     if (!dates.length) return;
 
     const bests = dates.map(d => Math.max(...(daily[d] || [0])));
@@ -258,8 +233,7 @@ function updateChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true } },
-            plugins: { legend: { display: true } }
+            scales: { y: { beginAtZero: true } }
         }
     });
 }
@@ -268,17 +242,15 @@ function checkAchievements() {
     const list = document.getElementById('achievementsList');
     list.innerHTML = '';
     const achs = [
-        {title: 'Первая сессия', icon: 'Trophy', cond: () => state.stats.allTime.sessions >= 1},
-        {title: '10 сессий', icon: 'Fire', cond: () => state.stats.allTime.sessions >= 10},
-        {title: '2 минуты', icon: 'Star', cond: () => state.stats.allTime.bestTime >= 120},
-        {title: '3 минуты!', icon: 'Stopwatch', cond: () => state.stats.allTime.bestTime >= 180},
-        {title: 'Неделя подряд', icon: 'Running Man', cond: () => state.stats.allTime.streak >= 7},
-        {title: 'Месяц практики', icon: 'Sparkles', cond: () => state.stats.allTime.sessions >= 30},
+        {title:'Первая сессия',icon:'Trophy',cond:()=>state.stats.allTime.sessions>=1},
+        {title:'10 сессий',icon:'Fire',cond:()=>state.stats.allTime.sessions>=10},
+        {title:'2 минуты',icon:'Star',cond:()=>state.stats.allTime.bestTime>=120},
+        {title:'3 минуты!',icon:'Stopwatch',cond:()=>state.stats.allTime.bestTime>=180},
+        {title:'Неделя подряд',icon:'Running Man',cond:()=>state.stats.allTime.streak>=7},
+        {title:'Месяц практики',icon:'Sparkles',cond:()=>state.stats.allTime.sessions>=30},
     ];
     achs.forEach(a => {
-        if (a.cond()) {
-            list.innerHTML += `<div class="achievement"><div class="achievement-icon">${a.icon}</div><div class="achievement-title">${a.title}</div></div>`;
-        }
+        if (a.cond()) list.innerHTML += `<div class="achievement"><div class="achievement-icon">${a.icon}</div><div class="achievement-title">${a.title}</div></div>`;
     });
 }
 
@@ -287,11 +259,7 @@ function save() {
     let daily = JSON.parse(localStorage.getItem(`wimhof_daily_${userId}`) || '{}');
     daily[today] = state.stats.today.times.slice();
     localStorage.setItem(`wimhof_daily_${userId}`, JSON.stringify(daily));
-
-    localStorage.setItem(`wimhof_${userId}`, JSON.stringify({
-        rounds: state.rounds.total,
-        allTime: state.stats.allTime
-    }));
+    localStorage.setItem(`wimhof_${userId}`, JSON.stringify({rounds: state.rounds.total, allTime: state.stats.allTime}));
 }
 
 function loadData() {
