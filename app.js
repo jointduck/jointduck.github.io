@@ -85,26 +85,42 @@ function updateChart() {
     });
 
     const chartEl = document.getElementById('dailyStatsChart');
+    if (!chartEl) return;
     chartEl.style.display = 'block';
     if (window.chart) window.chart.destroy();
 
     window.chart = new Chart(chartEl, {
         type: 'bar',
-        data: { labels, datasets: [
-            { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.85)', borderRadius: 6 },
-            { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.65)', borderRadius: 6 }
-        ]},
+        data: {
+            labels,
+            datasets: [
+                { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.85)', borderRadius: 6 },
+                { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.65)', borderRadius: 6 }
+            ]
+        },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true, ticks: { callback: v => formatTime(v) } } },
-            plugins: { tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatTime(ctx.parsed.y)}` } } }
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: v => formatTime(v) }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${formatTime(ctx.parsed.y)}`
+                    }
+                }
+            }
         }
     });
 }
 
 function checkAchievements() {
     const list = document.getElementById('achievementsList');
+    if (!list) return;
     list.innerHTML = '';
     const achs = [
         { title: 'Первая сессия', icon: 'Trophy', cond: () => state.stats.allTime.sessions >= 1 },
@@ -170,7 +186,10 @@ function startSession() {
 }
 
 function startBreathingCycle() {
-    if (state.rounds.breathCount >= 30) { startHold(); return; }
+    if (state.rounds.breathCount >= 30) {
+        startHold();
+        return;
+    }
     state.rounds.breathCount++;
     el.progress.style.width = (state.rounds.breathCount / 30 * 100) + '%';
     el.circle.className = 'breath-circle breathing-in';
@@ -263,4 +282,58 @@ function recoveryPhase(next) {
 function finishSession() {
     state.currentPhase = 'idle';
     state.rounds.current = 0;
-    state.rounds.b
+    state.rounds.breathCount = 0;
+    el.circle.className = 'breath-circle';
+    el.circleText.textContent = 'Начать';
+    el.phase.textContent = 'Сессия завершена! Отличная работа';
+    el.timer.textContent = '00:00';
+    el.progress.style.width = '0%';
+    updateRounds();
+    successHaptic();
+    haptic('heavy');
+    setTimeout(() => el.phase.textContent = 'Нажмите на круг, чтобы начать', 5000);
+}
+
+function guidedBreath(sec, text, cb) {
+    let t = sec;
+    el.phase.textContent = text;
+    el.timer.textContent = formatTime(t);
+    const i = setInterval(() => {
+        t--;
+        el.timer.textContent = formatTime(t);
+        if (t <= 0) {
+            clearInterval(i);
+            haptic();
+            cb();
+        }
+    }, 1000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('decreaseRounds')?.addEventListener('click', () => {
+        if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
+    });
+    document.getElementById('increaseRounds')?.addEventListener('click', () => {
+        if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
+    });
+
+    el.circle?.addEventListener('click', () => {
+        if (state.currentPhase === 'idle') startSession();
+        else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
+    });
+
+    document.querySelectorAll('.stats-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelectorAll('.stats-content').forEach(c => c.style.display = 'none');
+            const targetId = 'stats' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1);
+            const target = document.getElementById(targetId);
+            if (target) target.style.display = 'block';
+            if (tab.dataset.tab === 'allTime') updateChart();
+        });
+    });
+
+    loadData();
+    updateAllDisplays();
+});
