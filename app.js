@@ -164,20 +164,39 @@ function finishHold() {
 function recoveryPhase(next) {
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
-    el.circle.className = 'breath-circle recovery-pulse';
-    el.circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    el.circle.style.animation = 'recoveryPulse 3s ease-in-out infinite';
 
-    guidedBreath(2, 'Глубокий вдох', () => {
-        guidedBreath(15, 'Задержите на 15 сек', () => {
-            guidedBreath(2, 'Медленный выдох', () => {
-                el.circle.className = 'breath-circle';
-                el.circle.style.background = '';
-                el.circle.style.animation = '';
-                next();
-            });
-        });
-    });
+    // 1. Глубокий вдох (2 сек)
+    el.phase.textContent = 'Глубокий вдох';
+    el.circle.className = 'breath-circle breathing-in';
+    setTimeout(() => {
+        // 2. Задержка 15 сек (круг статичный, просто красивый градиент)
+        el.phase.textContent = 'Задержите на 15 сек';
+        el.circle.className = 'breath-circle';
+        el.circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+
+        let delay = 15;
+        const countdown = setInterval(() => {
+            el.timer.textContent = formatTime(delay);
+            delay--;
+            if (delay < 0) {
+                clearInterval(countdown);
+                haptic();
+
+                // 3. Медленный выдох (2 сек)
+                el.phase.textContent = 'Медленный выдох';
+                el.circle.className = 'breath-circle breathing-out';
+                el.timer.textContent = '02:00';
+
+                setTimeout(() => {
+                    // Возвращаем обычный вид и переходим дальше
+                    el.circle.className = 'breath-circle';
+                    el.circle.style.background = '';
+                    el.timer.textContent = '00:00';
+                    next();
+                }, 2000);
+            }
+        }, 1000);
+    }, 2000);
 }
 
 function guidedBreath(sec, text, cb) {
