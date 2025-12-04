@@ -203,7 +203,6 @@ function recoveryPhase(next) {
                     const exhaleInterval = setInterval(() => {
                         exhale--;
                         el.timer.textContent =2 секунды
-    el.
                         if (exhale <= 0) {
                             clearInterval(exhaleInterval);
                             haptic();
