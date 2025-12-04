@@ -34,7 +34,6 @@ const el = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Кнопки раундов
     document.getElementById('decreaseRounds')?.addEventListener('click', () => {
         if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
     });
@@ -42,31 +41,30 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
     });
 
-    // Главный круг
     el.circle.addEventListener('click', () => {
         if (state.currentPhase === 'idle') startSession();
         else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
     });
 
-    // Вкладки статистики — ЭТО ГЛАВНОЕ ИСПРАВЛЕНИЕ
+// ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК — ИСПРАВЛЕНО
     document.querySelectorAll('.stats-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-
-            // Скрываем оба блока
             document.getElementById('statsToday').style.display = 'none';
             document.getElementById('statsAlltime').style.display = 'none';
-
-            // Показываем нужный
             if (tab.dataset.tab === 'today') {
                 document.getElementById('statsToday').style.display = 'block';
             } else {
                 document.getElementById('statsAlltime').style.display = 'block';
-                updateChart(); // ← график только тут
+                updateChart();
             }
         });
     });
+
+    // При старте — только "Сегодня"
+    document.getElementById('statsToday').style.display = 'block';
+    document.getElementById('statsAlltime').style.display = 'none';
 
     loadData();
     resetTodayIfNewDay();
