@@ -242,8 +242,8 @@ function updateChart() {
         data: {
             labels: dates.map(d => new Date(d).toLocaleDateString('ru-RU', {day:'numeric', month:'short'})),
             datasets: [
-                { label: 'Лучшее', data: bests, backgroundColor: '#4caf50' },
-                { label: 'Среднее', data: avgs, backgroundColor: '#2196f3' }
+                { label: 'Лучшее', data: bests, backgroundColor: '#ff0000ff' },
+                { label: 'Среднее', data: avgs, backgroundColor: '#0011ffff' }
             ]
         },
         options: {
