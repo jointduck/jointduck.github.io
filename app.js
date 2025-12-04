@@ -1,18 +1,15 @@
-let tg = window.Telegram.WebApp;
-tg.expand();
-
-if (tg.isVersionAtLeast?.('6.0')) {
-    const topInset = tg.viewportStableHeight - tg.viewportHeight;
-    if (topInset > 0) document.body.style.paddingTop = `${topInset + 20}px`;
-}
+// === Telegram WebApp (с защитой от ошибок вне Telegram) ===
+let tg = window.Telegram?.WebApp;
+if (tg) tg.expand();
 
 function haptic(type = 'light') {
-    try { Telegram.WebApp.HapticFeedback.impactOccurred(type); } catch(e) {}
+    try { Telegram.WebApp.HapticFeedback.impactOccurred(type); } catch (e) {}
 }
 function successHaptic() {
-    try { Telegram.WebApp.HapticFeedback.notificationOccurred('success'); } catch(e) {}
+    try { Telegram.WebApp.HapticFeedback.notificationOccurred('success'); } catch (e) {}
 }
 
+// === Состояние ===
 const state = {
     currentPhase: 'idle',
     rounds: { current: 0, total: 3, breathCount: 0 },
@@ -23,17 +20,23 @@ const state = {
     }
 };
 
-const el = {
-    circle: document.getElementById('breathCircle'),
-    circleText: document.getElementById('circleText'),
-    phase: document.getElementById('phaseText'),
-    timer: document.getElementById('timer'),
-    progress: document.getElementById('progressBar'),
-    roundsCount: document.getElementById('roundsCount'),
-    currentRound: document.getElementById('currentRound'),
-    totalRounds: document.getElementById('totalRounds')
-};
+// === Элементы (получаем только после загрузки DOM) ===
+let el = {};
 
+function getElements() {
+    el = {
+        circle: document.getElementById('breathCircle'),
+        circleText: document.getElementById('circleText'),
+        phase: document.getElementById('phaseText'),
+        timer: document.getElementById('timer'),
+        progress: document.getElementById('progressBar'),
+        roundsCount: document.getElementById('roundsCount'),
+        currentRound: document.getElementById('currentRound'),
+        totalRounds: document.getElementById('totalRounds')
+    };
+}
+
+// === Утилиты ===
 function formatTime(sec) {
     const m = Math.floor(sec / 60).toString().padStart(2, '0');
     const s = (sec % 60).toString().padStart(2, '0');
@@ -47,7 +50,7 @@ function updateRounds() {
 }
 
 function updateStats() {
-    const avg = arr => arr.length ? Math.round(arr.reduce((a,b) => a + b, 0) / arr.length) : 0;
+    const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
     document.getElementById('sessionsToday').textContent = state.stats.today.sessions;
     document.getElementById('bestTimeToday').textContent = formatTime(state.stats.today.bestTime || 0);
     document.getElementById('avgTimeToday').textContent = formatTime(avg(state.stats.today.times));
@@ -58,7 +61,7 @@ function updateStats() {
 }
 
 function updateChart() {
-    const id = tg.initDataUnsafe?.user?.id;
+    const id = tg?.initDataUnsafe?.user?.id;
     if (!id) return;
 
     const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
@@ -81,19 +84,23 @@ function updateChart() {
 
     const avgs = dates.map(d => {
         const times = daily[d] || [];
-        return times.length ? Math.round(times.reduce((a,b) => a + b, 0) / times.length) : 0;
+        return times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
     });
 
     const chartEl = document.getElementById('dailyStatsChart');
+    if (!chartEl) return;
     chartEl.style.display = 'block';
-    if (window.chart) window.chart.destroy();
+    if (window.myChart) window.myChart.destroy();
 
-    window.chart = new Chart(chartEl, {
+    window.myChart = new Chart(chartEl, {
         type: 'bar',
-        data: { labels, datasets: [
-            { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.85)', borderRadius: 6 },
-            { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.65)', borderRadius: 6 }
-        ]},
+        data: {
+            labels,
+            datasets: [
+                { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.85)', borderRadius: 6 },
+                { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.65)', borderRadius: 6 }
+            ]
+        },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -105,6 +112,7 @@ function updateChart() {
 
 function checkAchievements() {
     const list = document.getElementById('achievementsList');
+    if (!list) return;
     list.innerHTML = '';
     const achs = [
         { title: 'Первая сессия', icon: 'Trophy', cond: () => state.stats.allTime.sessions >= 1 },
@@ -122,7 +130,7 @@ function checkAchievements() {
 }
 
 function save() {
-    const id = tg.initDataUnsafe?.user?.id;
+    const id = tg?.initDataUnsafe?.user?.id;
     if (!id) return;
     const today = new Date().toDateString();
     const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
@@ -135,13 +143,13 @@ function save() {
 }
 
 function loadData() {
-    const id = tg.initDataUnsafe?.user?.id;
+    const id = tg?.initDataUnsafe?.user?.id;
     if (!id) return;
     const saved = localStorage.getItem(`wimhof_${id}`);
     if (saved) {
         const d = JSON.parse(saved);
         state.rounds.total = d.rounds || 3;
-        if (d.allTime) state.stats.allTime = d.allTime;
+        if (d.allTime) Object.assign(state.stats.allTime, d.allTime);
     }
 }
 
@@ -160,7 +168,7 @@ function updateAllDisplays() {
     checkAchievements();
 }
 
-// === Основные фазы ===
+// === Фазы дыхания ===
 function startSession() {
     state.rounds.current++;
     state.rounds.breathCount = 0;
@@ -180,6 +188,7 @@ function startBreathingCycle() {
     el.circle.className = 'breath-circle breathing-in';
     el.circleText.textContent = `Вдох ${state.rounds.breathCount}/30`;
     el.phase.textContent = 'Глубокий вдох через нос';
+
     setTimeout(() => {
         if (state.currentPhase !== 'breathing') return;
         el.circle.className = 'breath-circle breathing-out';
@@ -233,9 +242,7 @@ function finishHold() {
     if (holdTime > wasBest) {
         successHaptic();
         el.phase.textContent = `НОВЫЙ РЕКОРД! ${formatTime(holdTime)}`;
-        setTimeout(() => {
-            if (state.currentPhase !== 'idle') el.phase.textContent = 'Выдохните и задержите дыхание';
-        }, 4000);
+        setTimeout(() => el.phase.textContent = 'Выдохните и задержите дыхание', 4000);
     }
 
     save();
@@ -293,26 +300,42 @@ function guidedBreath(sec, text, cb) {
     }, 1000);
 }
 
+// === ЗАПУСК ПОСЛЕ ЗАГРУЗКИ DOM ===
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('decreaseRounds')?.addEventListener('click', () => {
-        if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
-    });
-    document.getElementById('increaseRounds')?.addEventListener('click', () => {
-        if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
+    getElements();
+
+    // Кнопки раундов
+    document.getElementById('decreaseRounds').addEventListener('click', () => {
+        if (state.rounds.total > 1) {
+            state.rounds.total--;
+            updateRounds();
+            save();
+            haptic();
+        }
     });
 
-    el.circle?.addEventListener('click', () => {
+    document.getElementById('increaseRounds').addEventListener('click', () => {
+        if (state.rounds.total < 10) {
+            state.rounds.total++;
+            updateRounds();
+            save();
+            haptic();
+        }
+    });
+
+    // Круг
+    el.circle.addEventListener('click', () => {
         if (state.currentPhase === 'idle') startSession();
         else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
     });
 
+    // Вкладки статистики
     document.querySelectorAll('.stats-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             document.querySelectorAll('.stats-content').forEach(c => c.style.display = 'none');
-            const targetId = 'stats' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1);
-            const target = document.getElementById(targetId);
+            const target = document.getElementById('stats' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1));
             if (target) target.style.display = 'block';
             if (tab.dataset.tab === 'allTime') updateChart();
         });
