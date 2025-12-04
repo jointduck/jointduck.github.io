@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Дыхание по Виму Хофу</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Color Emoji', sans-serif; }
-    </style>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -26,9 +22,7 @@
         <div class="info-container">
             <div id="phaseText">Нажмите на круг, чтобы начать</div>
             <div id="timer">00:00</div>
-            <div class="progress-container">
-                <div id="progressBar" class="progress-bar"></div>
-            </div>
+            <div class="progress-container"><div id="progressBar" class="progress-bar"></div></div>
             <div id="roundInfo">Раунд <span id="currentRound">0</span> из <span id="totalRounds">3</span></div>
         </div>
 
@@ -38,7 +32,7 @@
                 <button class="stats-tab" data-tab="allTime">За всё время</button>
             </div>
 
-            <div id="statsToday" class="stats-content" style="display: block;">
+            <div id="statsToday" class="stats-content" style="display:block;">
                 <div class="stat-item"><div class="stat-label">Сессий сегодня</div><div class="stat-value" id="sessionsToday">0</div></div>
                 <div class="stat-item"><div class="stat-label">Лучшее сегодня</div><div class="stat-value" id="bestTimeToday">00:00</div></div>
                 <div class="stat-item"><div class="stat-label">Среднее сегодня</div><div class="stat-value" id="avgTimeToday">00:00</div></div>
