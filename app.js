@@ -85,42 +85,26 @@ function updateChart() {
     });
 
     const chartEl = document.getElementById('dailyStatsChart');
-    if (!chartEl) return;
     chartEl.style.display = 'block';
     if (window.chart) window.chart.destroy();
 
     window.chart = new Chart(chartEl, {
         type: 'bar',
-        data: {
-            labels,
-            datasets: [
-                { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.85)', borderRadius: 6 },
-                { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.65)', borderRadius: 6 }
-            ]
-        },
+        data: { labels, datasets: [
+            { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.85)', borderRadius: 6 },
+            { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.65)', borderRadius: 6 }
+        ]},
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { callback: v => formatTime(v) }
-                }
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `${ctx.dataset.label}: ${formatTime(ctx.parsed.y)}`
-                    }
-                }
-            }
+            scales: { y: { beginAtZero: true, ticks: { callback: v => formatTime(v) } } },
+            plugins: { tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatTime(ctx.parsed.y)}` } } }
         }
     });
 }
 
 function checkAchievements() {
     const list = document.getElementById('achievementsList');
-    if (!list) return;
     list.innerHTML = '';
     const achs = [
         { title: 'Первая сессия', icon: 'Trophy', cond: () => state.stats.allTime.sessions >= 1 },
@@ -157,7 +141,7 @@ function loadData() {
     if (saved) {
         const d = JSON.parse(saved);
         state.rounds.total = d.rounds || 3;
-        if (d.allTime) Object.assign(state.stats.allTime, d.allTime);
+        if (d.allTime) state.stats.allTime = d.allTime;
     }
 }
 
@@ -176,6 +160,7 @@ function updateAllDisplays() {
     checkAchievements();
 }
 
+// === Основные фазы ===
 function startSession() {
     state.rounds.current++;
     state.rounds.breathCount = 0;
@@ -195,7 +180,6 @@ function startBreathingCycle() {
     el.circle.className = 'breath-circle breathing-in';
     el.circleText.textContent = `Вдох ${state.rounds.breathCount}/30`;
     el.phase.textContent = 'Глубокий вдох через нос';
-
     setTimeout(() => {
         if (state.currentPhase !== 'breathing') return;
         el.circle.className = 'breath-circle breathing-out';
@@ -310,40 +294,18 @@ function guidedBreath(sec, text, cb) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const decreaseBtn = document.getElementById('decreaseRounds');
-    const increaseBtn = document.getElementById('increaseRounds');
-    const circle = document.getElementById('breathCircle');
+    document.getElementById('decreaseRounds')?.addEventListener('click', () => {
+        if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
+    });
+    document.getElementById('increaseRounds')?.addEventListener('click', () => {
+        if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
+    });
 
-    if (decreaseBtn) {
-        decreaseBtn.addEventListener('click', () => {
-            if (state.rounds.total > 1) {
-                state.rounds.total--;
-                updateRounds();
-                save();
-                haptic();
-            }
-        });
-    }
+    el.circle?.addEventListener('click', () => {
+        if (state.currentPhase === 'idle') startSession();
+        else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
+    });
 
-    if (increaseBtn) {
-        increaseBtn.addEventListener('click', () => {
-            if (state.rounds.total < 10) {
-                state.rounds.total++;
-                updateRounds();
-                save();
-                haptic();
-            }
-        });
-    }
-
-    if (circle) {
-        circle.addEventListener('click', () => {
-            if (state.currentPhase === 'idle') startSession();
-            else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
-        });
-    }
-
-    // Вкладки статистики
     document.querySelectorAll('.stats-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
