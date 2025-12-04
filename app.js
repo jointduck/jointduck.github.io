@@ -1,7 +1,6 @@
 let tg = window.Telegram.WebApp;
 tg.expand();
 
-// Отступ под чёлку
 if (tg.isVersionAtLeast?.('6.0')) {
     const topInset = tg.viewportStableHeight - tg.viewportHeight;
     if (topInset > 0) document.body.style.paddingTop = `${topInset + 20}px`;
@@ -14,7 +13,6 @@ function successHaptic() {
     try { Telegram.WebApp.HapticFeedback.notificationOccurred('success'); } catch(e) {}
 }
 
-// Состояние
 const state = {
     currentPhase: 'idle',
     rounds: { current: 0, total: 3, breathCount: 0 },
@@ -36,7 +34,6 @@ const el = {
     totalRounds: document.getElementById('totalRounds')
 };
 
-// === УТИЛИТЫ ===
 function formatTime(sec) {
     const m = Math.floor(sec / 60).toString().padStart(2, '0');
     const s = (sec % 60).toString().padStart(2, '0');
@@ -93,13 +90,10 @@ function updateChart() {
 
     window.chart = new Chart(chartEl, {
         type: 'bar',
-        data: {
-            labels,
-            datasets: [
-                { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.85)', borderRadius: 6 },
-                { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.65)', borderRadius: 6 }
-            ]
-        },
+        data: { labels, datasets: [
+            { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.85)', borderRadius: 6 },
+            { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.65)', borderRadius: 6 }
+        ]},
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -147,7 +141,7 @@ function loadData() {
     if (saved) {
         const d = JSON.parse(saved);
         state.rounds.total = d.rounds || 3;
-        if (d.allTime) state.stats.allTime = d.allTime;
+        if (d.allTime) Object.assign(state.stats.allTime, d.allTime);
     }
 }
 
@@ -166,7 +160,6 @@ function updateAllDisplays() {
     checkAchievements();
 }
 
-// === ФАЗЫ ДЫХАНИЯ ===
 function startSession() {
     state.rounds.current++;
     state.rounds.breathCount = 0;
@@ -177,10 +170,7 @@ function startSession() {
 }
 
 function startBreathingCycle() {
-    if (state.rounds.breathCount >= 30) {
-        startHold();
-        return;
-    }
+    if (state.rounds.breathCount >= 30) { startHold(); return; }
     state.rounds.breathCount++;
     el.progress.style.width = (state.rounds.breathCount / 30 * 100) + '%';
     el.circle.className = 'breath-circle breathing-in';
@@ -218,18 +208,15 @@ function finishHold() {
     const holdTime = Math.floor((Date.now() - state.timer.startTime) / 1000);
     const today = new Date().toDateString();
 
-    // Сегодня
     state.stats.today.sessions++;
     state.stats.today.times.push(holdTime);
     state.stats.today.bestTime = Math.max(state.stats.today.bestTime, holdTime);
 
-    // Все время
     state.stats.allTime.sessions++;
     state.stats.allTime.times.push(holdTime);
     const wasBest = state.stats.allTime.bestTime;
     state.stats.allTime.bestTime = Math.max(state.stats.allTime.bestTime, holdTime);
 
-    // Стрейк
     if (!state.stats.allTime.lastPractice || state.stats.allTime.lastPractice !== today) {
         const diff = state.stats.allTime.lastPractice
             ? Math.round((new Date(today) - new Date(state.stats.allTime.lastPractice)) / 86400000)
@@ -276,58 +263,4 @@ function recoveryPhase(next) {
 function finishSession() {
     state.currentPhase = 'idle';
     state.rounds.current = 0;
-    state.rounds.breathCount = 0;
-    el.circle.className = 'breath-circle';
-    el.circleText.textContent = 'Начать';
-    el.phase.textContent = 'Сессия завершена! Отличная работа';
-    el.timer.textContent = '00:00';
-    el.progress.style.width = '0%';
-    updateRounds();
-    successHaptic();
-    haptic('heavy');
-    setTimeout(() => el.phase.textContent = 'Нажмите на круг, чтобы начать', 5000);
-}
-
-function guidedBreath(sec, text, cb) {
-    let t = sec;
-    el.phase.textContent = text;
-    el.timer.textContent = formatTime(t);
-    const i = setInterval(() => {
-        t--;
-        el.timer.textContent = formatTime(t);
-        if (t <= 0) {
-            clearInterval(i);
-            haptic();
-            cb();
-        }
-    }, 1000);
-}
-
-// === ЗАПУСК ===
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('decreaseRounds')?.addEventListener('click', () => {
-        if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
-    });
-    document.getElementById('increaseRounds')?.addEventListener('click', () => {
-        if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
-    });
-
-    el.circle?.addEventListener('click', () => {
-        if (state.currentPhase === 'idle') startSession();
-        else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
-    });
-
-    document.querySelectorAll('.stats-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            document.querySelectorAll('.stats-content').forEach(c => c.style.display = 'none');
-            const target = document.getElementById('stats' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1));
-            if (target) target.style.display = 'block';
-            if (tab.dataset.tab === 'allTime') updateChart();
-        });
-    });
-
-    loadData();
-    updateAllDisplays();
-});
+    state.rounds.b
