@@ -3,28 +3,35 @@ if (tg) tg.expand();
 
 const userId = tg?.initDataUnsafe?.user?.id || 'local_user';
 
+// Инициализация с проверкой версии
+const tg = window.Telegram?.WebApp;
+if (tg) {
+    tg.expand();
+    console.log('WebApp version:', tg.version);  // Проверь в консоли (F12 в WebView)
+}
+
+// Хаптик с проверкой поддержки (для iOS)
 function haptic(type = 'light') {
-    if (!tg) return; // Только в TG
+    if (!tg || !tg.version || tg.version < '6.1') {
+        console.log('Haptics not supported (old version)');  // Для дебага
+        return;
+    }
     try {
-        if (type === 'notification' || type === 'success') {
-            tg.HapticFeedback.notificationOccurred('success'); // Работает везде
-        } else {
-            // Для Android fallback на notification
-            tg.HapticFeedback.notificationOccurred('success');
-            // Если хочешь impact — только на iOS, но без проверки
-            tg.HapticFeedback.impactOccurred(type);
-        }
+        // На iOS impactOccurred работает идеально
+        tg.HapticFeedback.impactOccurred(type);  // 'light', 'medium', 'heavy'
     } catch (e) {
-        console.log('Haptic failed:', e); // Для дебага
+        console.log('Haptic error:', e);  // Если ошибка — увидишь в консоли
+        // Fallback: notificationOccurred (работает везде)
+        tg.HapticFeedback.notificationOccurred('success');
     }
 }
 
 function successHaptic() {
-    if (!tg) return;
+    if (!tg || !tg.version || tg.version < '6.1') return;
     try {
-        tg.HapticFeedback.notificationOccurred('success'); // Надёжный вариант
+        tg.HapticFeedback.notificationOccurred('success');  // 'success', 'warning', 'error'
     } catch (e) {
-        console.log('Success haptic failed:', e);
+        console.log('Success haptic error:', e);
     }
 }
 const state = {
