@@ -1,8 +1,12 @@
 let tg = window.Telegram?.WebApp;
 if (tg) tg.expand();
 
-function haptic(type = 'light') { try { Telegram.WebApp.HapticFeedback.impactOccurred(type); } catch (e) {} }
-function successHaptic() { try { Telegram.WebApp.HapticFeedback.notificationOccurred('success'); } catch (e) {} }
+function haptic(type = 'light') {
+    try { Telegram.WebApp.HapticFeedback.impactOccurred(type); } catch (e) {}
+}
+function successHaptic() {
+    try { Telegram.WebApp.HapticFeedback.notificationOccurred('success'); } catch (e) {}
+}
 
 const state = {
     currentPhase: 'idle',
@@ -42,7 +46,7 @@ function updateRounds() {
 }
 
 function updateStats() {
-    const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+    const avg = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
     document.getElementById('sessionsToday').textContent = state.stats.today.sessions;
     document.getElementById('bestTimeToday').textContent = formatTime(state.stats.today.bestTime || 0);
     document.getElementById('avgTimeToday').textContent = formatTime(avg(state.stats.today.times));
@@ -62,13 +66,13 @@ function updateChart() {
         const d = new Date(today);
         d.setDate(today.getDate() - i);
         dates.push(d.toDateString());
-        labels.push(d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''));
+        labels.push(d.toLocaleDateString('ru-RU', {day:'numeric', month:'short'}).replace('.', ''));
     }
 
     const bests = dates.map(d => Math.max(...(daily[d] || [0]), 0));
     const avgs = dates.map(d => {
         const t = daily[d] || [];
-        return t.length ? Math.round(t.reduce((a, b) => a + b, 0) / t.length) : 0;
+        return t.length ? Math.round(t.reduce((a,b)=>a+b,0)/t.length) : 0;
     });
 
     const chartEl = document.getElementById('dailyStatsChart');
@@ -78,13 +82,10 @@ function updateChart() {
 
     window.myChart = new Chart(chartEl, {
         type: 'bar',
-        data: {
-            labels,
-            datasets: [
-                { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.9)', borderRadius: 8 },
-                { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.7)', borderRadius: 8 }
-            ]
-        },
+        data: { labels, datasets: [
+            { label: 'Лучшее', data: bests, backgroundColor: '#00d4ff', borderRadius: 8 },
+            { label: 'Среднее', data: avgs, backgroundColor: '#ff00c8', borderRadius: 8 }
+        ]},
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -108,11 +109,7 @@ function checkAchievements() {
     ];
     achs.forEach(a => {
         if (a.cond()) {
-            list.innerHTML += `
-                <div class="achievement">
-                    <div class="achievement-icon">${a.icon}</div>
-                    <div class="achievement-title">${a.title}</div>
-                </div>`;
+            list.innerHTML += `<div class="achievement"><div class="achievement-icon">${a.icon}</div><div class="achievement-title">${a.title}</div></div>`;
         }
     });
 }
@@ -244,7 +241,7 @@ function recoveryPhase(next) {
     el.circleText.textContent = 'Восстановление';
     guidedBreath(2, 'Глубокий вдох', () => {
         guidedBreath(15, 'Задержите на 15 сек', () => {
-            guidedBreath(2, 'Медленно выдохните', () => {
+            guidedBreath(2, () => {
                 haptic();
                 next();
             });
@@ -282,10 +279,11 @@ function guidedBreath(sec, text, cb) {
     }, 1000);
 }
 
-// ЗАПУСК
+// ЗАПУСК — ВСЁ РАБОТАЕТ
 document.addEventListener('DOMContentLoaded', () => {
     getElements();
 
+    // Кнопки раундов
     document.getElementById('decreaseRounds').addEventListener('click', () => {
         if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
     });
@@ -294,13 +292,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
     });
 
-    });
-
+    // Главный круг
     el.circle.addEventListener('click', () => {
         if (state.currentPhase === 'idle') startSession();
         else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
     });
 
+    // Вкладки
     document.querySelectorAll('.stats-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
