@@ -4,14 +4,29 @@ if (tg) tg.expand();
 const userId = tg?.initDataUnsafe?.user?.id || 'local_user';
 
 function haptic(type = 'light') {
-    if (tg) try { tg.HapticFeedback.impactOccurred(type); } catch(e) {}
-    else if (navigator.vibrate) navigator.vibrate(type === 'heavy' ? 100 : 70);
-}
-function successHaptic() {
-    if (tg) try { tg.HapticFeedback.notificationOccurred('success'); } catch(e) {}
-    else if (navigator.vibrate) navigator.vibrate([100,50,100]);
+    if (!tg) return; // Только в TG
+    try {
+        if (type === 'notification' || type === 'success') {
+            tg.HapticFeedback.notificationOccurred('success'); // Работает везде
+        } else {
+            // Для Android fallback на notification
+            tg.HapticFeedback.notificationOccurred('success');
+            // Если хочешь impact — только на iOS, но без проверки
+            tg.HapticFeedback.impactOccurred(type);
+        }
+    } catch (e) {
+        console.log('Haptic failed:', e); // Для дебага
+    }
 }
 
+function successHaptic() {
+    if (!tg) return;
+    try {
+        tg.HapticFeedback.notificationOccurred('success'); // Надёжный вариант
+    } catch (e) {
+        console.log('Success haptic failed:', e);
+    }
+}
 const state = {
     currentPhase: 'idle',
     rounds: { current: 0, total: 3, breathCount: 0 },
