@@ -265,7 +265,7 @@ function checkAchievements() {
         { title: '2 минуты', icon: '⭐', cond: () => state.stats.allTime.bestTime >= 120 },
         { title: '3 минуты!', icon: '⏱️', cond: () => state.stats.allTime.bestTime >= 180 },
         { title: 'Неделя подряд', icon: '🏃', cond: () => state.stats.allTime.streak >= 7 },
-        { title: 'Месяц практики', icon: '✨', cond: () => state.stats.allTime.sessions >
+        { title: 'Месяц практики', icon: '✨', cond: () => state.stats.allTime.sessions >=30},
     ];
     achs.forEach(a => {
         if (a.cond()) list.innerHTML += `<div class="achievement"><div class="achievement-icon">${a.icon}</div><div class="achievement-title">${a.title}</div></div>`;
