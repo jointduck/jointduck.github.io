@@ -88,7 +88,7 @@ function startSession() {
     state.currentPhase = 'breathing';
     updateRounds();
     startBreathingCycle();
-    haptic('medium');
+    haptic('heavy');
 }
 
 function startBreathingCycle() {
