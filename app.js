@@ -310,18 +310,40 @@ function guidedBreath(sec, text, cb) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('decreaseRounds')?.addEventListener('click', () => {
-        if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
-    });
-    document.getElementById('increaseRounds')?.addEventListener('click', () => {
-        if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
-    });
+    const decreaseBtn = document.getElementById('decreaseRounds');
+    const increaseBtn = document.getElementById('increaseRounds');
+    const circle = document.getElementById('breathCircle');
 
-    el.circle?.addEventListener('click', () => {
-        if (state.currentPhase === 'idle') startSession();
-        else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
-    });
+    if (decreaseBtn) {
+        decreaseBtn.addEventListener('click', () => {
+            if (state.rounds.total > 1) {
+                state.rounds.total--;
+                updateRounds();
+                save();
+                haptic();
+            }
+        });
+    }
 
+    if (increaseBtn) {
+        increaseBtn.addEventListener('click', () => {
+            if (state.rounds.total < 10) {
+                state.rounds.total++;
+                updateRounds();
+                save();
+                haptic();
+            }
+        });
+    }
+
+    if (circle) {
+        circle.addEventListener('click', () => {
+            if (state.currentPhase === 'idle') startSession();
+            else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
+        });
+    }
+
+    // Вкладки статистики
     document.querySelectorAll('.stats-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
