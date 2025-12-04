@@ -1,7 +1,7 @@
 let tg = window.Telegram.WebApp;
 tg.expand();
 
-// Отступ под "чёлку" и верхнюю панель Telegram
+// Отступ под чёлку / верхнюю панель
 if (tg.isVersionAtLeast?.('6.0')) {
     const topInset = tg.viewportStableHeight - tg.viewportHeight;
     if (topInset > 0) document.body.style.paddingTop = `${topInset + 20}px`;
@@ -16,7 +16,7 @@ function successHaptic() {
 
 // === Состояние ===
 const state = {
-    currentPhase: 'idle', // idle, breathing, holding, finalHold, recovery
+    currentPhase: 'idle',
     rounds: { current: 0, total: 3, breathCount: 0 },
     timer: { startTime: null, interval: null },
     stats: {
@@ -67,6 +67,32 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAllDisplays();
 });
 
+// === Вспомогательные функции (обязательно выше вызова!) ===
+function formatTime(sec) {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = (sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
+
+function updateRounds() {
+    el.roundsCount.textContent = state.rounds.total;
+    el.currentRound.textContent = state.rounds.current || 0;
+    el.totalRounds.textContent = state.rounds.total;
+}
+
+function updateStats() {
+    const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+
+    document.getElementById('sessionsToday').textContent = state.stats.today.sessions;
+    document.getElementById('bestTimeToday').textContent = formatTime(state.stats.today.bestTime || 0);
+    document.getElementById('avgTimeToday').textContent = formatTime(avg(state.stats.today.times));
+
+    document.getElementById('totalSessions').textContent = state.stats.allTime.sessions;
+    document.getElementById('bestTimeAll').textContent = formatTime(state.stats.allTime.bestTime || 0);
+    document.getElementById('avgTimeAll').textContent = formatTime(avg(state.stats.allTime.times));
+    document.getElementById('streakDays').textContent = state.stats.allTime.streak || 0;
+}
+
 // === Основной цикл ===
 function startSession() {
     state.rounds.current++;
@@ -82,7 +108,6 @@ function startBreathingCycle() {
         startHold();
         return;
     }
-
     state.rounds.breathCount++;
     el.progress.style.width = (state.rounds.breathCount / 30 * 100) + '%';
 
@@ -124,12 +149,12 @@ function finishHold() {
     const holdTime = Math.floor((Date.now() - state.timer.startTime) / 1000);
     const today = new Date().toDateString();
 
-    // Сегодня
+    // Сегодняшняя статистика
     state.stats.today.sessions++;
     state.stats.today.times.push(holdTime);
     state.stats.today.bestTime = Math.max(state.stats.today.bestTime, holdTime);
 
-    // За всё время
+    // Общая статистика
     state.stats.allTime.sessions++;
     state.stats.allTime.times.push(holdTime);
     const wasBest = state.stats.allTime.bestTime;
@@ -142,7 +167,7 @@ function finishHold() {
             : 0;
         if (daysDiff === 1) state.stats.allTime.streak++;
         else if (daysDiff > 1) state.stats.allTime.streak = 1;
-        else state.stats.allTime.streak = 1; // первый день
+        else state.stats.allTime.streak = 1;
         state.stats.allTime.lastPractice = today;
     }
 
@@ -160,7 +185,7 @@ function finishHold() {
     updateChart();
     checkAchievements();
 
-    // Восстановление → следующий раунд или конец
+    // Переход к восстановлению
     if (state.rounds.current < state.rounds.total) {
         recoveryPhase(startSession);
     } else {
@@ -213,53 +238,28 @@ function guidedBreath(sec, text, cb) {
     }, 1000);
 }
 
-function formatTime(sec) {
-    const m = Math.floor(sec / 60).toString().padStart(2, '0');
-    const s = (sec % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-}
-
-function updateRounds() {
-    el.roundsCount.textContent = state.rounds.total;
-    el.currentRound.textContent = state.rounds.current || 0;
-    el.totalRounds.textContent = state.rounds.total;
-}
-
-function updateStats() {
-    const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
-
-    document.getElementById('sessionsToday').textContent = state.stats.today.sessions;
-    document.getElementById('bestTimeToday').textContent = formatTime(state.stats.today.bestTime || 0);
-    document.getElementById('avgTimeToday').textContent = formatTime(avg(state.stats.today.times));
-
-    document.getElementById('totalSessions').textContent = state.stats.allTime.sessions;
-    document.getElementById('bestTimeAll').textContent = formatTime(state.stats.allTime.bestTime || 0);
-    document.getElementById('avgTimeAll').textContent = formatTime(avg(state.stats.allTime.times));
-    document.getElementById('streakDays').textContent = state.stats.allTime.streak || 0;
-}
-
-// График — теперь всегда 10 последних дней, даже если данных нет
+// График (10 последних дней)
 function updateChart() {
     const id = tg.initDataUnsafe?.user?.id;
     if (!id) return;
 
     const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
     const today = new Date();
-    const dates = [];
     const labels = [];
+    const dates = [];
 
     for (let i = 9; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(today.getDate() - i);
-        const dateStr = date.toDateString();
-        dates.push(dateStr);
-        labels.push(date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''));
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const str = d.toDateString();
+        dates.push(str);
+        labels.push(d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''));
     }
 
     const bests = dates.map(d => Math.max(...(daily[d] || [0]), 0));
     const avgs = dates.map(d => {
-        const times = daily[d] || [];
-        return times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
+        const t = daily[d] || [];
+        return t.length ? Math.round(t.reduce((a, b) => a + b, 0) / t.length) : 0;
     });
 
     document.getElementById('dailyStatsChart').style.display = 'block';
@@ -297,4 +297,50 @@ function checkAchievements() {
 
     achs.forEach(a => {
         if (a.cond()) {
-            list.innerHTML += `<div class
+            list.innerHTML += `<div class="achievement"><div class="achievement-icon">${a.icon}</div><div class="achievement-title">${a.title}</div></div>`;
+        }
+    });
+}
+
+// === Сохранение ===
+function save() {
+    const id = tg.initDataUnsafe?.user?.id;
+    if (!id) return;
+
+    const today = new Date().toDateString();
+    const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
+    daily[today] = state.stats.today.times.slice();
+    localStorage.setItem(`wimhof_daily_${id}`, JSON.stringify(daily));
+
+    localStorage.setItem(`wimhof_${id}`, JSON.stringify({
+        rounds: state.rounds.total,
+        allTime: state.stats.allTime
+    }));
+}
+
+function loadData() {
+    const id = tg.initDataUnsafe?.user?.id;
+    if (!id) return;
+
+    const saved = localStorage.getItem(`wimhof_${id}`);
+    if (saved) {
+        const d = JSON.parse(saved);
+        state.rounds.total = d.rounds || 3;
+        if (d.allTime) state.stats.allTime = d.allTime;
+    }
+}
+
+function resetTodayIfNewDay() {
+    const today = new Date().toDateString();
+    if (state.stats.allTime.lastPractice !== today) {
+        state.stats.today = { sessions: 0, bestTime: 0, times: [] };
+    }
+}
+
+function updateAllDisplays() {
+    resetTodayIfNewDay();
+    updateRounds();
+    updateStats();
+    updateChart();
+    checkAchievements();
+}
