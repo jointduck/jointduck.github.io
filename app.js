@@ -1,15 +1,9 @@
-// === Telegram WebApp (с защитой от ошибок вне Telegram) ===
 let tg = window.Telegram?.WebApp;
 if (tg) tg.expand();
 
-function haptic(type = 'light') {
-    try { Telegram.WebApp.HapticFeedback.impactOccurred(type); } catch (e) {}
-}
-function successHaptic() {
-    try { Telegram.WebApp.HapticFeedback.notificationOccurred('success'); } catch (e) {}
-}
+function haptic(type = 'light') { try { Telegram.WebApp.HapticFeedback.impactOccurred(type); } catch (e) {} }
+function successHaptic() { try { Telegram.WebApp.HapticFeedback.notificationOccurred('success'); } catch (e) {} }
 
-// === Состояние ===
 const state = {
     currentPhase: 'idle',
     rounds: { current: 0, total: 3, breathCount: 0 },
@@ -20,7 +14,6 @@ const state = {
     }
 };
 
-// === Элементы (получаем только после загрузки DOM) ===
 let el = {};
 
 function getElements() {
@@ -36,7 +29,6 @@ function getElements() {
     };
 }
 
-// === Утилиты ===
 function formatTime(sec) {
     const m = Math.floor(sec / 60).toString().padStart(2, '0');
     const s = (sec % 60).toString().padStart(2, '0');
@@ -61,30 +53,22 @@ function updateStats() {
 }
 
 function updateChart() {
-    const id = tg?.initDataUnsafe?.user?.id;
-    if (!id) return;
-
+    const id = tg?.initDataUnsafe?.user?.id || 'demo';
     const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
     const today = new Date();
-    const labels = [];
-    const dates = [];
+    const labels = [], dates = [];
 
     for (let i = 9; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(today.getDate() - i);
-        const str = d.toDateString();
-        dates.push(str);
+        dates.push(d.toDateString());
         labels.push(d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }).replace('.', ''));
     }
 
-    const bests = dates.map(d => {
-        const times = daily[d] || [];
-        return times.length ? Math.max(...times) : 0;
-    });
-
+    const bests = dates.map(d => Math.max(...(daily[d] || [0]), 0));
     const avgs = dates.map(d => {
-        const times = daily[d] || [];
-        return times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : 0;
+        const t = daily[d] || [];
+        return t.length ? Math.round(t.reduce((a, b) => a + b, 0) / t.length) : 0;
     });
 
     const chartEl = document.getElementById('dailyStatsChart');
@@ -97,15 +81,15 @@ function updateChart() {
         data: {
             labels,
             datasets: [
-                { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.85)', borderRadius: 6 },
-                { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.65)', borderRadius: 6 }
+                { label: 'Лучшее', data: bests, backgroundColor: 'rgba(0, 212, 255, 0.9)', borderRadius: 8 },
+                { label: 'Среднее', data: avgs, backgroundColor: 'rgba(255, 0, 200, 0.7)', borderRadius: 8 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true, ticks: { callback: v => formatTime(v) } } },
-            plugins: { tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatTime(ctx.parsed.y)}` } } }
+            scales: { y: { beginAtZero: true, ticks: { callback: formatTime } } },
+            plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${formatTime(c.parsed.y)}` } } }
         }
     });
 }
@@ -124,14 +108,17 @@ function checkAchievements() {
     ];
     achs.forEach(a => {
         if (a.cond()) {
-            list.innerHTML += `<div class="achievement"><div class="achievement-icon">${a.icon}</div><div class="achievement-title">${a.title}</div></div>`;
+            list.innerHTML += `
+                <div class="achievement">
+                    <div class="achievement-icon">${a.icon}</div>
+                    <div class="achievement-title">${a.title}</div>
+                </div>`;
         }
     });
 }
 
 function save() {
-    const id = tg?.initDataUnsafe?.user?.id;
-    if (!id) return;
+    const id = tg?.initDataUnsafe?.user?.id || 'demo';
     const today = new Date().toDateString();
     const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${id}`) || '{}');
     daily[today] = state.stats.today.times.slice();
@@ -143,8 +130,7 @@ function save() {
 }
 
 function loadData() {
-    const id = tg?.initDataUnsafe?.user?.id;
-    if (!id) return;
+    const id = tg?.initDataUnsafe?.user?.id || 'demo';
     const saved = localStorage.getItem(`wimhof_${id}`);
     if (saved) {
         const d = JSON.parse(saved);
@@ -168,7 +154,6 @@ function updateAllDisplays() {
     checkAchievements();
 }
 
-// === Фазы дыхания ===
 function startSession() {
     state.rounds.current++;
     state.rounds.breathCount = 0;
@@ -179,10 +164,7 @@ function startSession() {
 }
 
 function startBreathingCycle() {
-    if (state.rounds.breathCount >= 30) {
-        startHold();
-        return;
-    }
+    if (state.rounds.breathCount >= 30) { startHold(); return; }
     state.rounds.breathCount++;
     el.progress.style.width = (state.rounds.breathCount / 30 * 100) + '%';
     el.circle.className = 'breath-circle breathing-in';
@@ -300,42 +282,32 @@ function guidedBreath(sec, text, cb) {
     }, 1000);
 }
 
-// === ЗАПУСК ПОСЛЕ ЗАГРУЗКИ DOM ===
+// ЗАПУСК
 document.addEventListener('DOMContentLoaded', () => {
     getElements();
 
-    // Кнопки раундов
     document.getElementById('decreaseRounds').addEventListener('click', () => {
-        if (state.rounds.total > 1) {
-            state.rounds.total--;
-            updateRounds();
-            save();
-            haptic();
-        }
+        if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
     });
 
     document.getElementById('increaseRounds').addEventListener('click', () => {
-        if (state.rounds.total < 10) {
-            state.rounds.total++;
-            updateRounds();
-            save();
-            haptic();
-        }
+        if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
     });
 
-    // Круг
+    });
+
     el.circle.addEventListener('click', () => {
         if (state.currentPhase === 'idle') startSession();
         else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
     });
 
-    // Вкладки статистики
     document.querySelectorAll('.stats-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             document.querySelectorAll('.stats-content').forEach(c => c.style.display = 'none');
-            const target = document.getElementById('stats' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1));
+            const targetId = 'stats' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1).toLowerCase();
+            const target = document.getElementById(targetId);
             if (target) target.style.display = 'block';
             if (tab.dataset.tab === 'allTime') updateChart();
         });
