@@ -1,28 +1,23 @@
 const tg = window.Telegram?.WebApp;
 if (tg) {
     tg.expand();
-    console.log('WebApp version:', tg.version); // Для дебага хаптиков
+    console.log('Telegram WebApp version:', tg.version);
 }
 
 const userId = tg?.initDataUnsafe?.user?.id || 'local_user';
 
-// ХАПТИКИ — работают на всех iOS и Android 2023–2025
+// === ХАПТИКИ (работают на iOS и Android) ===
 function haptic(type = 'light') {
-    if (!tg || !tg.HapticFeedback) return;
-    try {
-        tg.HapticFeedback.impactOccurred(type); // light, medium, heavy — на iOS идеально
-    } catch (e) {
-        // fallback для старых/глючных устройств
-        try { tg.HapticFeedback.notificationOccurred('success'); } catch {}
-    }
+    if (!tg?.HapticFeedback) return;
+    try { tg.HapticFeedback.impactOccurred(type); } 
+    catch { try { tg.HapticFeedback.notificationOccurred('success'); } catch {} }
 }
 function successHaptic() {
-    if (!tg || !tg.HapticFeedback) return;
-    try {
-        tg.HapticFeedback.notificationOccurred('success');
-    } catch (e) {}
+    if (!tg?.HapticFeedback) return;
+    try { tg.HapticFeedback.notificationOccurred('success'); } catch {}
 }
 
+// === СОСТОЯНИЕ ===
 const state = {
     currentPhase: 'idle',
     rounds: { current: 0, total: 3, breathCount: 0 },
@@ -44,32 +39,29 @@ const el = {
     totalRounds: document.getElementById('totalRounds')
 };
 
+// === ЗАГРУЗКА ===
 document.addEventListener('DOMContentLoaded', () => {
-    // Кнопки раундов
-    document.getElementById('decreaseRounds')?.addEventListener('click', () => {
+    // Кнопки раундов — работают
+    document.getElementById('decreaseRounds').addEventListener('click', () => {
         if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
     });
-    document.getElementById('increaseRounds')?.addEventListener('click', () => {
+    document.getElementById('increaseRounds').addEventListener('click', () => {
         if (state.rounds.total < 10) { state.rounds.total++; updateRounds(); save(); haptic(); }
     });
 
+    // Главный круг
     el.circle.addEventListener('click', () => {
         if (state.currentPhase === 'idle') startSession();
         else if (state.currentPhase === 'holding' || state.currentPhase === 'finalHold') finishHold();
     });
 
-    // ВКЛАДКИ СТАТИСТИКИ — ИСПРАВЛЕНО ПОЛНОСТЬЮ
+    // Вкладки статистики — чистые
     document.querySelectorAll('.stats-tab').forEach(tab => {
         tab.addEventListener('click', () => {
-            // Убираем активность
             document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-
-            // Скрываем оба блока
             document.getElementById('statsToday').style.display = 'none';
             document.getElementById('statsAlltime').style.display = 'none';
-
-            // Показываем нужный
             if (tab.dataset.tab === 'today') {
                 document.getElementById('statsToday').style.display = 'block';
             } else {
@@ -79,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // При загрузке — чисто "Сегодня"
+    // Стартовая вкладка
     document.querySelector('.stats-tab[data-tab="today"]').classList.add('active');
     document.getElementById('statsToday').style.display = 'block';
     document.getElementById('statsAlltime').style.display = 'none';
@@ -89,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAllDisplays();
 });
 
+// === ОСНОВНОЙ ЦИКЛ ===
 function startSession() {
     state.rounds.current++;
     state.rounds.breathCount = 0;
@@ -126,7 +119,8 @@ function startHold() {
 
     state.timer.startTime = Date.now();
     state.timer.interval = setInterval(() => {
-        el.timer.textContent = formatTime(Math.floor((Date.now() - state.timer.startTime) / 1000));
+        const sec = Math.floor((Date.now() - state.timer.startTime) / 1000);
+        el.timer.textContent = formatTime(sec);
     }, 200);
 }
 
@@ -135,6 +129,7 @@ function finishHold() {
     const holdTime = Math.floor((Date.now() - state.timer.startTime) / 1000);
     const wasBest = state.stats.allTime.bestTime;
 
+    // Статистика
     state.stats.today.sessions++;
     state.stats.today.times.push(holdTime);
     state.stats.today.bestTime = Math.max(state.stats.today.bestTime, holdTime);
@@ -142,6 +137,7 @@ function finishHold() {
     state.stats.allTime.times.push(holdTime);
     state.stats.allTime.bestTime = Math.max(state.stats.allTime.bestTime, holdTime);
 
+    // Стрик
     const todayStr = new Date().toDateString();
     if (state.stats.allTime.lastPractice !== todayStr) {
         const daysDiff = state.stats.allTime.lastPractice
@@ -223,11 +219,9 @@ function updateRounds() {
 
 function updateStats() {
     const avg = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
-
     document.getElementById('sessionsToday').textContent = state.stats.today.sessions;
     document.getElementById('bestTimeToday').textContent = formatTime(state.stats.today.bestTime || 0);
     document.getElementById('avgTimeToday').textContent = formatTime(avg(state.stats.today.times));
-
     document.getElementById('totalSessions').textContent = state.stats.allTime.sessions;
     document.getElementById('bestTimeAll').textContent = formatTime(state.stats.allTime.bestTime || 0);
     document.getElementById('avgTimeAll').textContent = formatTime(avg(state.stats.allTime.times));
@@ -239,7 +233,6 @@ function updateChart() {
     const dates = Object.keys(daily).sort().slice(-10);
     const canvas = document.getElementById('dailyStatsChart');
     if (!canvas) return;
-
     canvas.closest('.chart-container').style.display = dates.length ? 'block' : 'none';
     if (!dates.length) return;
 
@@ -284,7 +277,10 @@ function save() {
     let daily = JSON.parse(localStorage.getItem(`wimhof_daily_${userId}`) || '{}');
     daily[today] = state.stats.today.times.slice();
     localStorage.setItem(`wimhof_daily_${userId}`, JSON.stringify(daily));
-    localStorage.setItem(`wimhof_${userId}`, JSON.stringify({rounds: state.rounds.total, allTime: state.stats.allTime}));
+    localStorage.setItem(`wimhof_${userId}`, JSON.stringify({
+        rounds: state.rounds.total,
+        allTime: state.stats.allTime
+    }));
 }
 
 function loadData() {
