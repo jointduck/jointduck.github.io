@@ -161,7 +161,7 @@ function finishHold() {
     state.rounds.current < state.rounds.total ? recoveryPhase(startSession) : recoveryPhase(finishSession);
 }
 
-ffunction recoveryPhase(next) {
+function recoveryPhase(next) {
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
 
