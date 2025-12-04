@@ -4,58 +4,46 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Дыхание по Виму Хофу</title>
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Эмодзи везде отображаются -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Color Emoji', sans-serif; }
     </style>
-
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <!-- Управление раундами -->
         <div class="rounds-control">
             <button id="decreaseRounds">-</button>
             <span id="roundsCount">3</span>
             <button id="increaseRounds">+</button>
         </div>
 
-        <!-- Круг дыхания -->
         <div class="breath-circle" id="breathCircle">
             <div id="circleText">Начать</div>
         </div>
 
-        <!-- Информация -->
         <div class="info-container">
             <div id="phaseText">Нажмите на круг, чтобы начать</div>
             <div id="timer">00:00</div>
             <div class="progress-container">
                 <div id="progressBar" class="progress-bar"></div>
             </div>
-            <div id="roundInfo">
-                Раунд <span id="currentRound">0</span> из <span id="totalRounds">3</span>
-            </div>
+            <div id="roundInfo">Раунд <span id="currentRound">0</span> из <span id="totalRounds">3</span></div>
         </div>
 
-        <!-- Статистика -->
         <div class="stats-container">
             <div class="stats-tabs">
                 <button class="stats-tab active" data-tab="today">Сегодня</button>
                 <button class="stats-tab" data-tab="allTime">За всё время</button>
             </div>
 
-            <!-- Сегодня -->
             <div id="statsToday" class="stats-content" style="display: block;">
                 <div class="stat-item"><div class="stat-label">Сессий сегодня</div><div class="stat-value" id="sessionsToday">0</div></div>
                 <div class="stat-item"><div class="stat-label">Лучшее сегодня</div><div class="stat-value" id="bestTimeToday">00:00</div></div>
                 <div class="stat-item"><div class="stat-label">Среднее сегодня</div><div class="stat-value" id="avgTimeToday">00:00</div></div>
             </div>
 
-            <!-- За всё время -->
             <div id="statsAlltime" class="stats-content">
                 <div class="stat-item"><div class="stat-label">Всего сессий</div><div class="stat-value" id="totalSessions">0</div></div>
                 <div class="stat-item"><div class="stat-label">Абсолютный рекорд</div><div class="stat-value" id="bestTimeAll">00:00</div></div>
@@ -65,7 +53,6 @@
             </div>
         </div>
 
-        <!-- Достижения -->
         <div class="achievements-container">
             <h3>Достижения</h3>
             <div id="achievementsList" class="achievements-list"></div>
