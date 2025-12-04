@@ -240,12 +240,12 @@ function checkAchievements() {
     const list = document.getElementById('achievementsList');
     list.innerHTML = '';
     const achs = [
-        {title:'Первая сессия',icon:'Trophy',cond:()=>state.stats.allTime.sessions>=1},
-        {title:'10 сессий',icon:'Fire',cond:()=>state.stats.allTime.sessions>=10},
-        {title:'2 минуты',icon:'Star',cond:()=>state.stats.allTime.bestTime>=120},
-        {title:'3 минуты!',icon:'Stopwatch',cond:()=>state.stats.allTime.bestTime>=180},
-        {title:'Неделя подряд',icon:'Running Man',cond:()=>state.stats.allTime.streak>=7},
-        {title:'Месяц практики',icon:'Sparkles',cond:()=>state.stats.allTime.sessions>=30},
+              { title: 'Первая сессия', icon: '🏆', cond: () => state.stats.allTime.sessions >= 1 },
+        { title: '10 сессий', icon: '🔥', cond: () => state.stats.allTime.sessions >= 10 },
+        { title: '2 минуты', icon: '⭐', cond: () => state.stats.allTime.bestTime >= 120 },
+        { title: '3 минуты!', icon: '⏱️', cond: () => state.stats.allTime.bestTime >= 180 },
+        { title: 'Неделя подряд', icon: '🏃', cond: () => state.stats.allTime.streak >= 7 },
+        { title: 'Месяц практики', icon: '✨', cond: () => state.stats.allTime.sessions >= 30 }
     ];
     achs.forEach(a => {
         if (a.cond()) list.innerHTML += `<div class="achievement"><div class="achievement-icon">${a.icon}</div><div class="achievement-title">${a.title}</div></div>`;
