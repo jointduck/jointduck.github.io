@@ -4,12 +4,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Дыхание по Виму Хофу</title>
-    
-    <!-- ЭТО ОБЯЗАТЕЛЬНО ДОЛЖНО БЫТЬ! -->
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
+    <!-- Фикс для эмодзи на всех устройствах -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Color Emoji', sans-serif; }
+    </style>
+
     <link rel="stylesheet" href="styles.css">
 </head>
+<body>
 <body>
     <div class="container">
         <div class="rounds-control">
@@ -54,7 +60,7 @@
                 </div>
             </div>
             
-            <div id="statsAllTime" class="stats-content" style="display: none;">
+            <div id="statsAlltime" class="stats-content" style="display: none;">
                 <div class="stat-item">
                     <div class="stat-label">Всего сессий</div>
                     <div class="stat-value" id="totalSessions">0</div>
@@ -86,5 +92,6 @@
     <script src="app.js"></script>
 </body>
 </html>
+
 
 
