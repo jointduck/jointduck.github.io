@@ -1,4 +1,4 @@
-/* === Безопасные отступы для iOS и Telegram === */
+/* === Универсальная красота везде === */
 @supports (padding-top: env(safe-area-inset-top)) {
     body { padding-top: max(20px, env(safe-area-inset-top)) !important; }
 }
@@ -10,120 +10,190 @@ body {
     margin: 0;
     padding: 20px;
     min-height: 100dvh;
-    background: var(--tg-theme-bg-color, #ffffff);
-    color: var(--tg-theme-text-color, #000000);
+    background: var(--tg-theme-bg-color, #0f0f0f);          /* тёмная по умолчанию вне TG */
+    color: var(--tg-theme-text-color, #ffffff);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    transition: background 0.3s, color 0.3s;
+    box-sizing: border-box;
 }
 
 .container {
     max-width: 600px;
     margin: 0 auto;
     padding-top: 20px;
-    padding-bottom: 40px;
+    padding-bottom: 60px;
 }
 
-/* Раунды */
+/* Кнопки раундов */
 .rounds-control {
-    margin: 10px 0 30px;
+    margin: 10px 0 35px;
     padding: 0 20px;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 20px;
+    gap: 24px;
     font-size: 24px;
+    font-weight: 600;
 }
 .rounds-control button {
-    width: 44px; height: 44px;
+    width: 48px;
+    height: 48px;
     border: none;
     border-radius: 50%;
-    background: var(--tg-theme-button-color, #3390ec);
-    color: var(--tg-theme-button-text-color, #fff);
-    font-size: 28px;
+    background: var(--tg-theme-button-color, #2481ff);
+    color: var(--tg-theme-button-text-color, #ffffff);
+    font-size: 30px;
+    font-weight: bold;
     cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: all 0.2s;
 }
+.rounds-control button:active { transform: scale(0.9); }
 
-/* Прогресс */
+/* Прогресс-бар */
 .progress-container {
     width: 80%;
-    height: 6px;
-    background: var(--tg-theme-secondary-bg-color, #e0e0e0);
-    border-radius: 3px;
-    margin: 20px auto;
+    max-width: 400px;
+    height: 7px;
+    background: var(--tg-theme-secondary-bg-color, rgba(255,255,255,0.1));
+    border-radius: 4px;
+    margin: 25px auto;
+    overflow: hidden;
 }
 .progress-bar {
     width: 0;
     height: 100%;
-    background: var(--tg-theme-button-color, #3390ec);
-    border-radius: 3px;
+    background: var(--tg-theme-button-color, #2481ff);
+    border-radius: 4px;
     transition: width 0.4s ease;
 }
 
-/* Круг дыхания */
+/* Главный круг */
 .breath-circle {
-    width: 220px;
-    height: 220px;
+    width: 240px;
+    height: 240px;
     border-radius: 50%;
-    margin: 30px auto;
-    background: var(--tg-theme-button-color, #3390ec);
-    color: var(--tg-theme-button-text-color, #fff);
+    margin: 40px auto;
+    background: var(--tg-theme-button-color, #2481ff);
+    color: var(--tg-theme-button-text-color, #ffffff);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: transform 0.3s ease;
     user-select: none;
+    font-size: 32px;
+    font-weight: 600;
+    box-shadow: 0 10px 30px rgba(36, 129, 255, 0.4);
+    transition: all 0.3s ease;
 }
+.breath-circle:active { transform: scale(0.95); }
+
 .breath-circle.breathing-in { animation: breathIn 2s ease-in-out; }
-.breath-circle.breathing-out { animation: breathOut 2s ease-in-out; background: #ff4444; }
-
-@keyframes breathIn { from { transform: scale(1); } to { transform: scale(1.25); } }
-@keyframes breathOut { from { transform: scale(1.25); } to { transform: scale(1); } }
-
-#circleText { font-size: 28px; font-weight: 600; text-align: center; }
-
-/* Текст */
-#phaseText { font-size: 20px; margin: 15px 0; min-height: 50px; }
-#timer { font-size: 48px; font-weight: bold; margin: 10px 0; }
-#roundInfo { font-size: 18px; margin-top: 15px; }
-
-/* Статистика и достижения */
-.stats-container, .achievements-container {
-    margin: 30px 0;
-    padding: 20px;
-    background: var(--tg-theme-secondary-bg-color, #f5f5f5);
-    border-radius: 16px;
+.breath-circle.breathing-out { 
+    animation: breathOut 2s ease-in-out;
+    background: #ff3b30;
+    box-shadow: 0 10px 30px rgba(255, 59, 48, 0.4);
 }
-.stats-tabs { display: flex; justify-content: center; gap: 12px; margin-bottom: 20px; }
+
+@keyframes breathIn { from { transform: scale(1); } to { transform: scale(1.28); } }
+@keyframes breathOut { from { transform: scale(1.28); } to { transform: scale(1); } }
+
+#circleText { pointer-events: none; }
+
+/* Тексты */
+#phaseText {
+    font-size: 21px;
+    margin: 20px 0;
+    min-height: 60px;
+    text-align: center;
+    line-height: 1.4;
+}
+#timer {
+    font-size: 56px;
+    font-weight: bold;
+    letter-spacing: -2px;
+    margin: 15px 0;
+}
+#roundInfo {
+    font-size: 19px;
+    opacity: 0.9;
+    margin-top: 20px;
+}
+
+/* Блоки статистики и достижений */
+.stats-container,
+.achievements-container {
+    margin: 35px 0;
+    padding: 22px;
+    background: var(--tg-theme-secondary-bg-color, rgba(255,255,255,0.08));
+    border-radius: 20px;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.stats-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 22px;
+}
 .stats-tab {
-    padding: 10px 20px;
+    padding: 11px 24px;
     border: none;
-    border-radius: 25px;
+    border-radius: 30px;
     background: transparent;
-    color: var(--tg-theme-hint-color, #888);
+    color: var(--tg-theme-hint-color, rgba(255,255,255,0.6));
     font-size: 16px;
+    font-weight: 500;
     cursor: pointer;
+    transition: all 0.3s;
 }
 .stats-tab.active {
-    background: var(--tg-theme-button-color, #3390ec);
+    background: var(--tg-theme-button-color, #2481ff);
     color: #fff;
 }
-.stat-value { font-size: 24px; }
 
-.chart-container { height: 280px; margin-top: 20px; }
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.stat-item:last-child { border-bottom: none; }
+.stat-label { opacity: 0.7; }
+.stat-value { font-weight: bold; font-size: 22px; }
 
+/* График */
+.chart-container {
+    height: 300px;
+    margin-top: 25px;
+    padding: 10px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 12px;
+}
+
+/* Достижения */
+.achievements-container h3 {
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    text-align: center;
+}
 .achievement {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px;
-    background: var(--tg-theme-bg-color, #fff);
-    border-radius: 12px;
-    font-size: 15px;
+    gap: 14px;
+    padding: 14px;
+    background: var(--tg-theme-bg-color, rgba(255,255,255,0.05));
+    border-radius: 14px;
+    margin-bottom: 10px;
 }
-.achievement-icon { font-size: 28px; }
+.achievement-icon { font-size: 32px; }
+.achievement-title { font-weight: 600; }
 
+/* Адаптив */
 @media (max-width: 480px) {
-    .achievement { width: 100%; }
-    .breath-circle { width: 200px; height: 200px; }
-    #timer { font-size: 42px; }
+    .breath-circle { width: 200px; height: 200px; font-size: 28px; }
+    #timer { font-size: 48px; }
+    .rounds-control button { width: 44px; height: 44px; font-size: 26px; }
+    .achievement { flex-direction: column; text-align: center; }
 }
