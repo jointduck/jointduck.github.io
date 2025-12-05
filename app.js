@@ -267,31 +267,69 @@ function updateStats() {
 
 function updateChart() {
     const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${userId}`) || '{}');
+
+    // Берём даты, сортируем, ограничиваем последними 10
     const dates = Object.keys(daily).sort().slice(-10);
+
     const canvas = document.getElementById('dailyStatsChart');
     if (!canvas) return;
+
     canvas.closest('.chart-container').style.display = dates.length ? 'block' : 'none';
     if (!dates.length) return;
 
-    const bests = dates.map(d => Math.max(...(daily[d] || [0])));
-    const avgs = dates.map(d => {
+    // Считаем обычные значения
+    const bestsPerDay = dates.map(d => Math.max(...(daily[d] || [0])));
+    const avgsPerDay = dates.map(d => {
         const t = daily[d] || [];
-        return t.length ? Math.round(t.reduce((a,b)=>a+b,0)/t.length) : 0;
+        return t.length ? t.reduce((a,b)=>a+b,0) / t.length : 0;
     });
 
+    // === НАКОПЛЕНИЕ ===
+    let cumulativeBest = 0;
+    const cumulativeBests = bestsPerDay.map(v => {
+        cumulativeBest += v;
+        return Math.round(cumulativeBest);
+    });
+
+    let cumulativeAvg = 0;
+    const cumulativeAvgs = avgsPerDay.map(v => {
+        cumulativeAvg += v;
+        return Math.round(cumulativeAvg);
+    });
+
+    // Человеческие подписи дат
+    const labels = dates.map(d =>
+        new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+    );
+
+    // Рисуем график
     if (window.myChart) window.myChart.destroy();
+
     window.myChart = new Chart(canvas.getContext('2d'), {
         type: 'bar',
         data: {
-            labels: dates.map(d => new Date(d).toLocaleDateString('ru-RU', {day:'numeric', month:'short'})),
+            labels,
             datasets: [
-                { label: 'Лучшее', data: bests, backgroundColor: '#ff0000ff' },
-                { label: 'Среднее', data: avgs, backgroundColor: '#0011ffff' }
+                {
+                    label: 'Среднее (накоп.)',
+                    data: cumulativeAvgs,
+                    backgroundColor: '#ff0000ff', // красный
+                },
+                {
+                    label: 'Лучшее (накоп.)',
+                    data: cumulativeBests,
+                    backgroundColor: '#0011ffff', // синий
+                }
             ]
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
     });
 }
+
 
 function checkAchievements() {
     const list = document.getElementById('achievementsList');
