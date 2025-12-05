@@ -266,43 +266,42 @@ function updateStats() {
 }
 
 function updateChart() {
-    const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${userId}`) || '{}');
+    const raw = localStorage.getItem(`wimhof_daily_${userId}`);
+    if (!raw) {
+        document.querySelector('.chart-container').style.display = 'none';
+        return;
+    }
 
-    // Берём даты, сортируем, ограничиваем последними 10
-    const dates = Object.keys(daily).sort().slice(-10);
+    const daily = JSON.parse(raw);
+
+    // Правильная сортировка дат (строки вида "Mon Dec 04 2025 ..." → Date → сортировка)
+    const sortedDates = Object.keys(daily)
+        .map(d => ({ str: d, date: new Date(d) }))           // превращаем в объекты
+        .sort((a, b) => a.date - b.date)                    // хронологически
+        .map(obj => obj.str)                                // обратно в строки
+        .slice(-10);                                        // последние 10 дней
+
+    if (sortedDates.length === 0) {
+        document.querySelector('.chart-container').style.display = 'none';
+        return;
+    }
+
+    // Показываем график
+    document.querySelector('.chart-container').style.display = 'block';
+
+    const bests = sortedDates.map(d => Math.max(...(daily[d] || [0])));
+    const avgs = sortedDates.map(d => {
+        const t = daily[d] || [];
+        return t.length ? Math.round(t.reduce((a, b) => a + b, 0) / t.length) : 0;
+    });
+
+    const labels = sortedDates.map(d =>
+        new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+    );
 
     const canvas = document.getElementById('dailyStatsChart');
     if (!canvas) return;
 
-    canvas.closest('.chart-container').style.display = dates.length ? 'block' : 'none';
-    if (!dates.length) return;
-
-    // Считаем обычные значения
-    const bestsPerDay = dates.map(d => Math.max(...(daily[d] || [0])));
-    const avgsPerDay = dates.map(d => {
-        const t = daily[d] || [];
-        return t.length ? t.reduce((a,b)=>a+b,0) / t.length : 0;
-    });
-
-    // === НАКОПЛЕНИЕ ===
-    let cumulativeBest = 0;
-    const cumulativeBests = bestsPerDay.map(v => {
-        cumulativeBest += v;
-        return Math.round(cumulativeBest);
-    });
-
-    let cumulativeAvg = 0;
-    const cumulativeAvgs = avgsPerDay.map(v => {
-        cumulativeAvg += v;
-        return Math.round(cumulativeAvg);
-    });
-
-    // Человеческие подписи дат
-    const labels = dates.map(d =>
-        new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
-    );
-
-    // Рисуем график
     if (window.myChart) window.myChart.destroy();
 
     window.myChart = new Chart(canvas.getContext('2d'), {
@@ -310,31 +309,17 @@ function updateChart() {
         data: {
             labels: labels,
             datasets: [
-                {
-                    label: 'Лучшее',
-                    data: bests,
-                    backgroundColor: '#0011ffff'
-                },
-                {
-                    label: 'Среднее',
-                    data: avgs,
-                    backgroundColor: '#ff0000ff'
-                }
+                { label: 'Лучшее',  data: bests, backgroundColor: '#0011ffff' },
+                { label: 'Среднее', data: avgs,  backgroundColor: '#ff0000ff' }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true }
-            },
-            plugins: {
-                legend: { position: 'top' }
-            }
+            scales: { y: { beginAtZero: true } }
         }
     });
 }
-
 function checkAchievements() {
     const list = document.getElementById('achievementsList');
     list.innerHTML = '';
