@@ -268,64 +268,59 @@ function updateStats() {
 function updateChart() {
     const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${userId}`) || '{}');
 
-    // Берём даты, сортируем, ограничиваем последними 10
-    const dates = Object.keys(daily).sort().slice(-10);
+    // Берём все даты, сортируем по возрастанию (от старых к новым)
+    const dates = Object.keys(daily).sort();
+
+    // Оставляем только последние 10 дней (или меньше, если их меньше)
+    const last10 = dates.slice(-10);
 
     const canvas = document.getElementById('dailyStatsChart');
     if (!canvas) return;
 
-    canvas.closest('.chart-container').style.display = dates.length ? 'block' : 'none';
-    if (!dates.length) return;
+    const container = canvas.closest('.chart-container');
+    container.style.display = last10.length ? 'block' : 'none';
+    if (!last10.length) return;
 
-    // Считаем обычные значения
-    const bestsPerDay = dates.map(d => Math.max(...(daily[d] || [0])));
-    const avgsPerDay = dates.map(d => {
+    // Лучшее и среднее время за каждый день
+    const bests = last10.map(d => Math.max(...(daily[d] || [0])));
+    const avgs = last10.map(d => {
         const t = daily[d] || [];
-        return t.length ? t.reduce((a,b)=>a+b,0) / t.length : 0;
+        return t.length ? Math.round(t.reduce((a,b) => a+b, 0) / t.length) : 0;
     });
 
-    // === НАКОПЛЕНИЕ ===
-    let cumulativeBest = 0;
-    const cumulativeBests = bestsPerDay.map(v => {
-        cumulativeBest += v;
-        return Math.round(cumulativeBest);
-    });
+    // Форматируем даты красиво: 5 дек, 6 дек, 7 дек...
+    const labels = last10.map(d => new Date(d).toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'short'
+    }));
 
-    let cumulativeAvg = 0;
-    const cumulativeAvgs = avgsPerDay.map(v => {
-        cumulativeAvg += v;
-        return Math.round(cumulativeAvg);
-    });
-
-    // Человеческие подписи дат
-    const labels = dates.map(d =>
-        new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
-    );
-
-    // Рисуем график
     if (window.myChart) window.myChart.destroy();
 
     window.myChart = new Chart(canvas.getContext('2d'), {
         type: 'bar',
         data: {
-            labels,
+            labels: labels,                    // ← теперь строго по хронологии
             datasets: [
                 {
-                    label: 'Среднее (накоп.)',
-                    data: cumulativeAvgs,
-                    backgroundColor: '#ff0000ff', // красный
-                },
-                {
-                    label: 'Лучшее (накоп.)',
-                    data: cumulativeBests,
-                    backgroundColor: '#0011ffff', // синий
-                }
+                    { label: 'Лучшее',  data: bests, backgroundColor: '#4caf50' },
+                { label: 'Среднее', data: avgs, backgroundColor: '#2196f3' }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true } }
+            scales: {
+                y: { beginAtZero: true },
+                x: { 
+                    ticks: { 
+                        maxRotation: 0,
+                        minRotation: 0 
+                    }
+                }
+            },
+            plugins: {
+                legend: { position: 'top' }
+            }
         }
     });
 }
