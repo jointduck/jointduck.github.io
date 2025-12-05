@@ -302,8 +302,8 @@ function updateChart() {
             labels: labels,                    // ← теперь строго по хронологии
             datasets: [
                 {
-                    { label: 'Лучшее',  data: bests, backgroundColor: '#4caf50' },
-                { label: 'Среднее', data: avgs, backgroundColor: '#2196f3' }
+                    { label: 'Лучшее',  data: bests, backgroundColor: '#0011ffff' },
+                { label: 'Среднее', data: avgs, backgroundColor: '#ff0000ff' }
             ]
         },
         options: {
