@@ -268,11 +268,9 @@ function updateStats() {
 function updateChart() {
     const daily = JSON.parse(localStorage.getItem(`wimhof_daily_${userId}`) || '{}');
 
-    // Берём все даты, сортируем по возрастанию (от старых к новым)
+    // Сортируем даты по возрастанию (от старых к новым)
     const dates = Object.keys(daily).sort();
-
-    // Оставляем только последние 10 дней (или меньше, если их меньше)
-    const last10 = dates.slice(-10);
+    const last10 = dates.slice(-10); // последние 10 дней
 
     const canvas = document.getElementById('dailyStatsChart');
     if (!canvas) return;
@@ -281,14 +279,12 @@ function updateChart() {
     container.style.display = last10.length ? 'block' : 'none';
     if (!last10.length) return;
 
-    // Лучшее и среднее время за каждый день
     const bests = last10.map(d => Math.max(...(daily[d] || [0])));
     const avgs = last10.map(d => {
         const t = daily[d] || [];
         return t.length ? Math.round(t.reduce((a,b) => a+b, 0) / t.length) : 0;
     });
 
-    // Форматируем даты красиво: 5 дек, 6 дек, 7 дек...
     const labels = last10.map(d => new Date(d).toLocaleDateString('ru-RU', {
         day: 'numeric',
         month: 'short'
@@ -299,24 +295,25 @@ function updateChart() {
     window.myChart = new Chart(canvas.getContext('2d'), {
         type: 'bar',
         data: {
-            labels: labels,                    // ← теперь строго по хронологии
+            labels: labels,
             datasets: [
                 {
-                    { label: 'Лучшее',  data: bests, backgroundColor: '#0011ffff' },
-                { label: 'Среднее', data: avgs, backgroundColor: '#ff0000ff' }
+                    label: 'Лучшее',
+                    data: bests,
+                    backgroundColor: '#0011ffff'
+                },
+                {
+                    label: 'Среднее',
+                    data: avgs,
+                    backgroundColor: '#ff0000ff'
+                }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true },
-                x: { 
-                    ticks: { 
-                        maxRotation: 0,
-                        minRotation: 0 
-                    }
-                }
+                y: { beginAtZero: true }
             },
             plugins: {
                 legend: { position: 'top' }
@@ -324,7 +321,6 @@ function updateChart() {
         }
     });
 }
-
 
 function checkAchievements() {
     const list = document.getElementById('achievementsList');
