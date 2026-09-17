@@ -107,54 +107,130 @@ body {
 .settings-overlay {
     display: none;
     position: fixed; inset: 0;
-    background: rgba(0,0,0,0.6);
-    z-index: 100;
+    background: rgba(0,0,0,0.55);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
     align-items: flex-end;
     justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
 }
-.settings-overlay.open { display: flex; }
+.settings-overlay.open { display: flex; opacity: 1; }
 
 .settings-panel {
     width: 100%; max-width: 600px;
-    background: var(--tg-theme-bg-color, #161616);
-    border-radius: 20px 20px 0 0;
-    padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
-    max-height: 85vh; overflow-y: auto;
-    box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+    background: var(--tg-theme-secondary-bg-color, #17171a);
+    border-radius: 22px 22px 0 0;
+    padding: 10px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -12px 50px rgba(0,0,0,0.55);
+    display: flex;
+    flex-direction: column;
+    /* var(--app-vh) — реальная высота вьюпорта Telegram, чтобы панель не обрезалась */
+    max-height: min(calc(var(--app-vh, 100dvh) * 0.9), 640px);
+    transform: translateY(24px);
+    opacity: 0;
+    transition: transform 0.28s cubic-bezier(.32,.72,0,1), opacity 0.28s ease;
+}
+.settings-overlay.open .settings-panel { transform: translateY(0); opacity: 1; }
+
+.panel-handle {
+    width: 40px; height: 4px; border-radius: 4px;
+    background: rgba(255,255,255,0.2);
+    margin: 4px auto 10px;
+    flex: none;
 }
 
-.settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.settings-header h3 { margin: 0; font-size: 20px; }
+.settings-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex: none;
+}
+.settings-header h3 { margin: 0; font-size: 18px; font-weight: 700; }
 .close-btn {
-    width: 36px; height: 36px; border: none; border-radius: 50%;
-    background: rgba(255,255,255,0.08); color: #fff; font-size: 16px; cursor: pointer;
+    width: 34px; height: 34px; border: none; border-radius: 50%;
+    background: rgba(255,255,255,0.08); color: #fff; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
+    flex: none;
 }
-.close-btn svg { width: 18px; height: 18px; }
+.close-btn svg { width: 17px; height: 17px; }
 
-.setting-row { margin: 22px 0; }
-.setting-label { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 15px; opacity: 0.9; }
-.setting-value { font-weight: bold; opacity: 1; color: var(--accent-color); }
+.settings-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 4px 2px;
+}
 
-.setting-row input[type="range"] {
-    width: 100%; accent-color: var(--accent-color);
+.setting-row { margin: 20px 0; }
+.setting-row:first-child { margin-top: 16px; }
+.setting-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; font-size: 14.5px; opacity: 0.85; }
+.setting-value {
+    font-weight: 700; opacity: 1; color: var(--accent-color);
+    font-variant-numeric: tabular-nums;
+    min-width: 34px; text-align: right;
+}
+
+/* Кастомные слайдеры — нативные выглядят чужеродно на разных платформах */
+.styled-range {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 22px;
+    background: transparent;
+    margin: 0; padding: 0;
+    cursor: pointer;
+}
+.styled-range::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent-color) 0%, var(--accent-color) var(--fill, 50%), rgba(255,255,255,0.12) var(--fill, 50%), rgba(255,255,255,0.12) 100%);
+}
+.styled-range::-moz-range-track {
+    height: 6px; border-radius: 4px; background: rgba(255,255,255,0.12);
+}
+.styled-range::-moz-range-progress {
+    height: 6px; border-radius: 4px; background: var(--accent-color);
+}
+.styled-range::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; margin-top: -8px;
+    border-radius: 50%; background: #fff;
+    border: 3px solid var(--accent-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.styled-range::-moz-range-thumb {
+    width: 22px; height: 22px; border: 3px solid var(--accent-color);
+    border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 .color-swatches { display: flex; gap: 12px; margin-top: 4px; flex-wrap: wrap; }
 .swatch {
     width: 38px; height: 38px; border-radius: 50%; cursor: pointer;
-    border: 3px solid transparent;
+    border: 2px solid transparent; box-sizing: border-box; padding: 0;
+    position: relative; flex: none;
+    display: flex; align-items: center; justify-content: center;
 }
-.swatch.selected { border-color: #fff; }
+.swatch.selected { border-color: #fff; box-shadow: 0 0 0 2px var(--accent-color); }
 
-.custom-color-input {
-    margin-top: 14px; width: 100%; height: 40px; border: none; border-radius: 10px;
-    background: transparent; cursor: pointer; padding: 0;
+.custom-swatch {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.7);
+    border: 2px dashed rgba(255,255,255,0.25);
+}
+.custom-swatch svg { width: 16px; height: 16px; pointer-events: none; }
+.custom-swatch input[type="color"] {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer; border: none; padding: 0;
 }
 
-.settings-footer { display: flex; gap: 12px; margin-top: 24px; }
+.settings-footer {
+    display: flex; gap: 10px; padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    flex: none;
+}
 .settings-btn-primary, .settings-btn-secondary {
-    flex: 1; padding: 14px; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer;
+    flex: 1; padding: 14px; border: none; border-radius: 14px; font-size: 15.5px; font-weight: 600; cursor: pointer;
 }
 .settings-btn-primary { background: var(--accent-color); color: #fff; }
 .settings-btn-secondary { background: rgba(255,255,255,0.08); color: #fff; }
+.settings-btn-primary:active, .settings-btn-secondary:active { transform: scale(0.97); }

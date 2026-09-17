@@ -16,6 +16,19 @@
             window.Telegram.WebApp.expand();
             console.log('TG WebApp version:', window.Telegram.WebApp.version);
         }
+
+        // Надёжная высота вьюпорта внутри Telegram (без этого доля браузеров
+        // считает высоту неверно, и нижние элементы/панели обрезаются)
+        function setAppHeight() {
+            const h = window.Telegram?.WebApp?.viewportStableHeight
+                || window.visualViewport?.height
+                || window.innerHeight;
+            document.documentElement.style.setProperty('--app-vh', h + 'px');
+        }
+        setAppHeight();
+        window.addEventListener('resize', setAppHeight);
+        window.visualViewport?.addEventListener('resize', setAppHeight);
+        window.Telegram?.WebApp?.onEvent?.('viewportChanged', setAppHeight);
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -75,6 +88,7 @@
 
     <div id="settingsOverlay" class="settings-overlay">
         <div class="settings-panel">
+            <div class="panel-handle"></div>
             <div class="settings-header">
                 <h3>Настройки</h3>
                 <button id="closeSettings" class="close-btn" aria-label="Закрыть">
@@ -88,7 +102,7 @@
                         <span>Вдохов в раунде</span>
                         <span class="setting-value" id="valBreaths">30</span>
                     </div>
-                    <input type="range" id="setBreaths" min="10" max="60" step="1" value="30">
+                    <input type="range" class="styled-range" id="setBreaths" min="10" max="60" step="1" value="30">
                 </div>
 
                 <div class="setting-row">
@@ -96,7 +110,7 @@
                         <span>Длительность вдоха, сек</span>
                         <span class="setting-value" id="valInhale">2.0</span>
                     </div>
-                    <input type="range" id="setInhale" min="1" max="5" step="0.5" value="2">
+                    <input type="range" class="styled-range" id="setInhale" min="1" max="5" step="0.5" value="2">
                 </div>
 
                 <div class="setting-row">
@@ -104,7 +118,7 @@
                         <span>Длительность выдоха, сек</span>
                         <span class="setting-value" id="valExhale">2.0</span>
                     </div>
-                    <input type="range" id="setExhale" min="1" max="5" step="0.5" value="2">
+                    <input type="range" class="styled-range" id="setExhale" min="1" max="5" step="0.5" value="2">
                 </div>
 
                 <div class="setting-row">
@@ -112,7 +126,7 @@
                         <span>Задержка на восстановлении, сек</span>
                         <span class="setting-value" id="valRecovery">15</span>
                     </div>
-                    <input type="range" id="setRecovery" min="5" max="60" step="5" value="15">
+                    <input type="range" class="styled-range" id="setRecovery" min="5" max="60" step="5" value="15">
                 </div>
 
                 <div class="setting-row">
@@ -124,8 +138,11 @@
                         <button class="swatch" data-color="#af52de" style="background:#af52de"></button>
                         <button class="swatch" data-color="#ff9500" style="background:#ff9500"></button>
                         <button class="swatch" data-color="#00c7be" style="background:#00c7be"></button>
+                        <label class="swatch custom-swatch" id="customSwatchLabel">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            <input type="color" id="setCustomColor" value="#2481ff">
+                        </label>
                     </div>
-                    <input type="color" id="setCustomColor" class="custom-color-input" value="#2481ff">
                 </div>
             </div>
 

@@ -42,9 +42,18 @@ function populateSettingsForm() {
     document.getElementById('setRecovery').value = settings.recoveryHoldSec;
     document.getElementById('valRecovery').textContent = settings.recoveryHoldSec;
     document.getElementById('setCustomColor').value = settings.accentColor;
-    document.querySelectorAll('.swatch').forEach(sw => {
+    document.querySelectorAll('.swatch[data-color]').forEach(sw => {
         sw.classList.toggle('selected', sw.dataset.color.toLowerCase() === settings.accentColor.toLowerCase());
     });
+    document.querySelectorAll('.styled-range').forEach(updateRangeFill);
+}
+
+function updateRangeFill(input) {
+    const min = parseFloat(input.min) || 0;
+    const max = parseFloat(input.max) || 100;
+    const val = parseFloat(input.value);
+    const pct = max > min ? ((val - min) / (max - min)) * 100 : 0;
+    input.style.setProperty('--fill', pct + '%');
 }
 
 // === ХАПТИКИ (работают на iOS и Android) ===
@@ -149,29 +158,33 @@ function setupSettingsUI() {
 
     breathsInput.addEventListener('input', () => {
         document.getElementById('valBreaths').textContent = breathsInput.value;
+        updateRangeFill(breathsInput);
     });
     inhaleInput.addEventListener('input', () => {
         document.getElementById('valInhale').textContent = parseFloat(inhaleInput.value).toFixed(1);
+        updateRangeFill(inhaleInput);
     });
     exhaleInput.addEventListener('input', () => {
         document.getElementById('valExhale').textContent = parseFloat(exhaleInput.value).toFixed(1);
+        updateRangeFill(exhaleInput);
     });
     recoveryInput.addEventListener('input', () => {
         document.getElementById('valRecovery').textContent = recoveryInput.value;
+        updateRangeFill(recoveryInput);
     });
 
-    document.querySelectorAll('.swatch').forEach(sw => {
+    document.querySelectorAll('.swatch[data-color]').forEach(sw => {
         sw.addEventListener('click', () => {
             const color = sw.dataset.color;
             customColorInput.value = color;
-            document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+            document.querySelectorAll('.swatch[data-color]').forEach(s => s.classList.remove('selected'));
             sw.classList.add('selected');
             document.documentElement.style.setProperty('--accent-color', color);
             haptic();
         });
     });
     customColorInput.addEventListener('input', () => {
-        document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+        document.querySelectorAll('.swatch[data-color]').forEach(s => s.classList.remove('selected'));
         document.documentElement.style.setProperty('--accent-color', customColorInput.value);
     });
 
