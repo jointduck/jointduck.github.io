@@ -6,6 +6,47 @@ if (tg) {
 
 const userId = tg?.initDataUnsafe?.user?.id || 'local_user';
 
+// === НАСТРОЙКИ ===
+const DEFAULT_SETTINGS = {
+    breathsPerRound: 30,
+    inhaleSec: 2,
+    exhaleSec: 2,
+    recoveryHoldSec: 15,
+    accentColor: '#2481ff'
+};
+let settings = { ...DEFAULT_SETTINGS };
+
+function loadSettings() {
+    try {
+        const raw = localStorage.getItem(`wimhof_settings_${userId}`);
+        if (raw) settings = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    } catch { settings = { ...DEFAULT_SETTINGS }; }
+    applySettings();
+}
+
+function saveSettings() {
+    localStorage.setItem(`wimhof_settings_${userId}`, JSON.stringify(settings));
+}
+
+function applySettings() {
+    document.documentElement.style.setProperty('--accent-color', settings.accentColor);
+}
+
+function populateSettingsForm() {
+    document.getElementById('setBreaths').value = settings.breathsPerRound;
+    document.getElementById('valBreaths').textContent = settings.breathsPerRound;
+    document.getElementById('setInhale').value = settings.inhaleSec;
+    document.getElementById('valInhale').textContent = settings.inhaleSec.toFixed(1);
+    document.getElementById('setExhale').value = settings.exhaleSec;
+    document.getElementById('valExhale').textContent = settings.exhaleSec.toFixed(1);
+    document.getElementById('setRecovery').value = settings.recoveryHoldSec;
+    document.getElementById('valRecovery').textContent = settings.recoveryHoldSec;
+    document.getElementById('setCustomColor').value = settings.accentColor;
+    document.querySelectorAll('.swatch').forEach(sw => {
+        sw.classList.toggle('selected', sw.dataset.color.toLowerCase() === settings.accentColor.toLowerCase());
+    });
+}
+
 // === ХАПТИКИ (работают на iOS и Android) ===
 function haptic(type = 'light') {
     if (!tg?.HapticFeedback) return;
@@ -77,9 +118,82 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('statsAlltime').style.display = 'none';
 
     loadData();
+    loadSettings();
     resetTodayIfNewDay();
     updateAllDisplays();
+    setupSettingsUI();
 });
+
+// === НАСТРОЙКИ: UI ===
+function setupSettingsUI() {
+    const overlay = document.getElementById('settingsOverlay');
+    const openBtn = document.getElementById('settingsBtn');
+    const closeBtn = document.getElementById('closeSettings');
+    const saveBtn = document.getElementById('saveSettings');
+    const resetBtn = document.getElementById('resetSettings');
+
+    const breathsInput = document.getElementById('setBreaths');
+    const inhaleInput = document.getElementById('setInhale');
+    const exhaleInput = document.getElementById('setExhale');
+    const recoveryInput = document.getElementById('setRecovery');
+    const customColorInput = document.getElementById('setCustomColor');
+
+    openBtn.addEventListener('click', () => {
+        if (state.currentPhase !== 'idle') return; // не даём менять настройки во время сессии
+        populateSettingsForm();
+        overlay.classList.add('open');
+        haptic();
+    });
+    closeBtn.addEventListener('click', () => overlay.classList.remove('open'));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
+
+    breathsInput.addEventListener('input', () => {
+        document.getElementById('valBreaths').textContent = breathsInput.value;
+    });
+    inhaleInput.addEventListener('input', () => {
+        document.getElementById('valInhale').textContent = parseFloat(inhaleInput.value).toFixed(1);
+    });
+    exhaleInput.addEventListener('input', () => {
+        document.getElementById('valExhale').textContent = parseFloat(exhaleInput.value).toFixed(1);
+    });
+    recoveryInput.addEventListener('input', () => {
+        document.getElementById('valRecovery').textContent = recoveryInput.value;
+    });
+
+    document.querySelectorAll('.swatch').forEach(sw => {
+        sw.addEventListener('click', () => {
+            const color = sw.dataset.color;
+            customColorInput.value = color;
+            document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+            sw.classList.add('selected');
+            document.documentElement.style.setProperty('--accent-color', color);
+            haptic();
+        });
+    });
+    customColorInput.addEventListener('input', () => {
+        document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+        document.documentElement.style.setProperty('--accent-color', customColorInput.value);
+    });
+
+    saveBtn.addEventListener('click', () => {
+        settings.breathsPerRound = parseInt(breathsInput.value, 10);
+        settings.inhaleSec = parseFloat(inhaleInput.value);
+        settings.exhaleSec = parseFloat(exhaleInput.value);
+        settings.recoveryHoldSec = parseInt(recoveryInput.value, 10);
+        settings.accentColor = customColorInput.value;
+        applySettings();
+        saveSettings();
+        overlay.classList.remove('open');
+        successHaptic();
+    });
+
+    resetBtn.addEventListener('click', () => {
+        settings = { ...DEFAULT_SETTINGS };
+        applySettings();
+        populateSettingsForm();
+        haptic();
+    });
+}
 
 // === ОСНОВНОЙ ЦИКЛ ===
 function startSession() {
@@ -92,21 +206,27 @@ function startSession() {
 }
 
 function startBreathingCycle() {
-    if (state.rounds.breathCount >= 30) { startHold(); return; }
+    const total = settings.breathsPerRound;
+    const inhaleMs = settings.inhaleSec * 1000;
+    const exhaleMs = settings.exhaleSec * 1000;
+
+    if (state.rounds.breathCount >= total) { startHold(); return; }
     state.rounds.breathCount++;
-    el.progress.style.width = (state.rounds.breathCount / 30 * 100) + '%';
+    el.progress.style.width = (state.rounds.breathCount / total * 100) + '%';
 
     el.circle.className = 'breath-circle breathing-in';
-    el.circleText.textContent = `Вдох ${state.rounds.breathCount}/30`;
+    el.circle.style.animationDuration = settings.inhaleSec + 's';
+    el.circleText.textContent = `Вдох ${state.rounds.breathCount}/${total}`;
     el.phase.textContent = 'Глубокий вдох через нос';
 
     setTimeout(() => {
         if (state.currentPhase !== 'breathing') return;
         el.circle.className = 'breath-circle breathing-out';
-        el.circleText.textContent = `Выдох ${state.rounds.breathCount}/30`;
+        el.circle.style.animationDuration = settings.exhaleSec + 's';
+        el.circleText.textContent = `Выдох ${state.rounds.breathCount}/${total}`;
         el.phase.textContent = 'Спокойный выдох через рот';
-        setTimeout(() => { if (state.currentPhase === 'breathing') startBreathingCycle(); }, 2000);
-    }, 2000);
+        setTimeout(() => { if (state.currentPhase === 'breathing') startBreathingCycle(); }, exhaleMs);
+    }, inhaleMs);
 }
 
 function startHold() {
@@ -165,24 +285,25 @@ function recoveryPhase(next) {
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
 
-    // === 1. Глубокий вдох (2 секунды) ===
+    // === 1. Глубокий вдох ===
     el.phase.textContent = 'Глубокий вдох';
     el.circle.className = 'breath-circle breathing-in';
-    let breathIn = 2;
-    el.timer.textContent = `00:0${breathIn}`;
+    el.circle.style.animationDuration = settings.inhaleSec + 's';
+    let breathIn = Math.max(1, Math.round(settings.inhaleSec));
+    el.timer.textContent = formatTime(breathIn);
 
     const breathInInterval = setInterval(() => {
         breathIn--;
-        el.timer.textContent = `00:0${breathIn}`;
+        el.timer.textContent = formatTime(breathIn);
         if (breathIn <= 0) {
             clearInterval(breathInInterval);
             haptic();
 
-            // === 2. Задержка 15 секунд ===
-            el.phase.textContent = 'Задержите на 15 сек';
+            // === 2. Задержка на восстановлении ===
+            el.phase.textContent = `Задержите на ${settings.recoveryHoldSec} сек`;
             el.circle.className = 'breath-circle';
             el.circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            let hold = 15;
+            let hold = settings.recoveryHoldSec;
             el.timer.textContent = formatTime(hold);
 
             const holdInterval = setInterval(() => {
@@ -192,15 +313,16 @@ function recoveryPhase(next) {
                     clearInterval(holdInterval);
                     haptic();
 
-                    // === 3. Медленный выдох (2 секунды) ===
+                    // === 3. Медленный выдох ===
                     el.phase.textContent = 'Медленный выдох';
                     el.circle.className = 'breath-circle breathing-out';
-                    let breathOut = 2;
-                    el.timer.textContent = `00:0${breathOut}`;
+                    el.circle.style.animationDuration = settings.exhaleSec + 's';
+                    let breathOut = Math.max(1, Math.round(settings.exhaleSec));
+                    el.timer.textContent = formatTime(breathOut);
 
                     const breathOutInterval = setInterval(() => {
                         breathOut--;
-                        el.timer.textContent = `00:0${breathOut}`;
+                        el.timer.textContent = formatTime(breathOut);
                         if (breathOut <= 0) {
                             clearInterval(breathOutInterval);
                             haptic();
@@ -208,6 +330,7 @@ function recoveryPhase(next) {
                             // Возврат в исходное состояние
                             el.circle.className = 'breath-circle';
                             el.circle.style.background = '';
+                            el.circle.style.animationDuration = '';
                             el.timer.textContent = '00:00';
                             next();
                         }
@@ -320,16 +443,26 @@ function updateChart() {
         }
     });
 }
+// === ИКОНКИ ДОСТИЖЕНИЙ (SVG, line-style) ===
+const ACH_ICONS = {
+    trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"></path><path d="M7 5H4a2 2 0 0 0 0 4h1.6"></path><path d="M17 5h3a2 2 0 0 1 0 4h-1.6"></path><path d="M12 14v4"></path><path d="M8 21h8"></path><path d="M10 18h4"></path></svg>',
+    flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1 3-2 4.2-2 7.2a4 4 0 0 0 8 0c0-1.2-.5-2.1-1-2.9 1.1 1 3 3.1 3 6.1a6 6 0 0 1-12 0c0-4.3 2.2-6.6 4-10.4z"></path></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 2.5l2.9 6 6.6.7-4.9 4.5 1.3 6.5-5.9-3.3-5.9 3.3 1.3-6.5-4.9-4.5 6.6-.7z"></path></svg>',
+    timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="8"></circle><path d="M12 13.5V9"></path><path d="M9.5 2.5h5"></path><path d="M16.5 4.5l1.6-1.6"></path></svg>',
+    streak: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="16" rx="3"></rect><path d="M16 2.5v4"></path><path d="M8 2.5v4"></path><path d="M3.5 10h17"></path><path d="M9 15l2 2 4-4.5"></path></svg>',
+    sparkles: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M11.2 2.5l1.5 4.6 4.6 1.5-4.6 1.5-1.5 4.6-1.5-4.6-4.6-1.5 4.6-1.5z"></path><path d="M18.5 13.5l.9 2.7 2.7.9-2.7.9-.9 2.7-.9-2.7-2.7-.9 2.7-.9z"></path></svg>'
+};
+
 function checkAchievements() {
     const list = document.getElementById('achievementsList');
     list.innerHTML = '';
     const achs = [
-        { title: 'Первая сессия', icon: '🏆', cond: () => state.stats.allTime.sessions >= 1 },
-        { title: '10 сессий', icon: '🔥', cond: () => state.stats.allTime.sessions >= 10 },
-        { title: '2 минуты', icon: '⭐', cond: () => state.stats.allTime.bestTime >= 120 },
-        { title: '3 минуты!', icon: '⏱️', cond: () => state.stats.allTime.bestTime >= 180 },
-        { title: 'Неделя подряд', icon: '🏃', cond: () => state.stats.allTime.streak >= 7 },
-        { title: 'Месяц практики', icon: '✨', cond: () => state.stats.allTime.sessions >=30},
+        { title: 'Первая сессия', icon: ACH_ICONS.trophy, cond: () => state.stats.allTime.sessions >= 1 },
+        { title: '10 сессий', icon: ACH_ICONS.flame, cond: () => state.stats.allTime.sessions >= 10 },
+        { title: '2 минуты', icon: ACH_ICONS.star, cond: () => state.stats.allTime.bestTime >= 120 },
+        { title: '3 минуты!', icon: ACH_ICONS.timer, cond: () => state.stats.allTime.bestTime >= 180 },
+        { title: 'Неделя подряд', icon: ACH_ICONS.streak, cond: () => state.stats.allTime.streak >= 7 },
+        { title: 'Месяц практики', icon: ACH_ICONS.sparkles, cond: () => state.stats.allTime.sessions >=30},
     ];
     achs.forEach(a => {
         if (a.cond()) list.innerHTML += `<div class="achievement"><div class="achievement-icon">${a.icon}</div><div class="achievement-title">${a.title}</div></div>`;

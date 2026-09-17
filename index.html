@@ -23,6 +23,12 @@
 </head>
 <body>
     <div class="container">
+        <div class="top-bar">
+            <button id="settingsBtn" class="settings-btn" aria-label="Настройки" title="Настройки">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </button>
+        </div>
+
         <div class="rounds-control">
             <button id="decreaseRounds">-</button>
             <span id="roundsCount">3</span>
@@ -64,6 +70,69 @@
         <div class="achievements-container">
             <h3>Достижения</h3>
             <div id="achievementsList" class="achievements-list"></div>
+        </div>
+    </div>
+
+    <div id="settingsOverlay" class="settings-overlay">
+        <div class="settings-panel">
+            <div class="settings-header">
+                <h3>Настройки</h3>
+                <button id="closeSettings" class="close-btn" aria-label="Закрыть">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <div class="settings-body">
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span>Вдохов в раунде</span>
+                        <span class="setting-value" id="valBreaths">30</span>
+                    </div>
+                    <input type="range" id="setBreaths" min="10" max="60" step="1" value="30">
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span>Длительность вдоха, сек</span>
+                        <span class="setting-value" id="valInhale">2.0</span>
+                    </div>
+                    <input type="range" id="setInhale" min="1" max="5" step="0.5" value="2">
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span>Длительность выдоха, сек</span>
+                        <span class="setting-value" id="valExhale">2.0</span>
+                    </div>
+                    <input type="range" id="setExhale" min="1" max="5" step="0.5" value="2">
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span>Задержка на восстановлении, сек</span>
+                        <span class="setting-value" id="valRecovery">15</span>
+                    </div>
+                    <input type="range" id="setRecovery" min="5" max="60" step="5" value="15">
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-label"><span>Цвет акцента</span></div>
+                    <div class="color-swatches" id="colorSwatches">
+                        <button class="swatch" data-color="#2481ff" style="background:#2481ff"></button>
+                        <button class="swatch" data-color="#ff3b30" style="background:#ff3b30"></button>
+                        <button class="swatch" data-color="#34c759" style="background:#34c759"></button>
+                        <button class="swatch" data-color="#af52de" style="background:#af52de"></button>
+                        <button class="swatch" data-color="#ff9500" style="background:#ff9500"></button>
+                        <button class="swatch" data-color="#00c7be" style="background:#00c7be"></button>
+                    </div>
+                    <input type="color" id="setCustomColor" class="custom-color-input" value="#2481ff">
+                </div>
+            </div>
+
+            <div class="settings-footer">
+                <button id="resetSettings" class="settings-btn-secondary">Сбросить</button>
+                <button id="saveSettings" class="settings-btn-primary">Сохранить</button>
+            </div>
         </div>
     </div>
 
