@@ -69,19 +69,44 @@ body {
 .breath-stage.show-ring .ring-progress { opacity: 0.9; }
 
 .breath-circle {
-    position: absolute; inset: 30px; border-radius: 50%;
+    position: absolute;
+    left: 30px;
+    top: 30px;
+    width: 200px;
+    height: 200px;
+    box-sizing: border-box;
+    border-radius: 50%;
     background: var(--accent-color);
-    color: #fff; display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 34px; font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 34px;
+    font-weight: 600;
     box-shadow: 0 12px 40px rgba(36,129,255,0.5);
     transition: background 0.3s, box-shadow 0.3s;
+    transform-origin: center center;
 }
+
+/* Текст находится внутри анимируемого круга, поэтому компенсирует его scale
+   и остаётся ровным и одного размера. Кольцо при этом масштабируется вместе с кругом. */
+#circleText {
+    position: relative;
+    z-index: 2;
+    transform-origin: center center;
+}
+
 .breath-circle:active { transform: scale(0.95); }
 .breath-circle.breathing-in { animation: breathIn 2s ease-in-out; }
+.breath-circle.breathing-in #circleText { animation: textIn 2s ease-in-out; }
 .breath-circle.breathing-out { animation: breathOut 2s ease-in-out; background: #ff3b30; box-shadow: 0 12px 40px rgba(255,59,48,0.5); }
+.breath-circle.breathing-out #circleText { animation: textOut 2s ease-in-out; }
 
 @keyframes breathIn { from { transform: scale(1); } to { transform: scale(1.12); } }
 @keyframes breathOut { from { transform: scale(1.12); } to { transform: scale(1); } }
+@keyframes textIn { from { transform: scale(1); } to { transform: scale(0.892857); } }
+@keyframes textOut { from { transform: scale(0.892857); } to { transform: scale(1); } }
 
 #phaseText { font-size: 22px; text-align: center; min-height: 60px; margin: 20px 0; line-height: 1.4; }
 #timer { font-size: 64px; font-weight: bold; text-align: center; letter-spacing: -2px; }
