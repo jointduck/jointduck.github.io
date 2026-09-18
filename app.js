@@ -6,30 +6,95 @@ if (tg) {
 
 const userId = tg?.initDataUnsafe?.user?.id || 'local_user';
 
+// === КЛЮЧИ ХРАНИЛИЩА ===
+const KEY_SETTINGS = `wimhof_settings_${userId}`;
+const KEY_DAILY = `wimhof_daily_${userId}`;
+const KEY_AGGREGATE = `wimhof_${userId}`;
+
+// === TELEGRAM CLOUDSTORAGE (синхронизация между устройствами) ===
+// localStorage остаётся источником истины внутри сессии (синхронный),
+// CloudStorage — фоновое зеркало для переноса данных между устройствами/переустановками.
+function cloudAvailable() {
+    return !!(tg && tg.CloudStorage && typeof tg.CloudStorage.setItem === 'function');
+}
+function cloudSet(key, value) {
+    if (!cloudAvailable()) return;
+    try { tg.CloudStorage.setItem(key, value, (err) => { if (err) console.warn('CloudStorage set:', key, err); }); }
+    catch (e) { console.warn('CloudStorage set failed:', e); }
+}
+function cloudGetItems(keys) {
+    return new Promise(resolve => {
+        if (!cloudAvailable()) return resolve({});
+        let done = false;
+        const finish = (v) => { if (!done) { done = true; resolve(v || {}); } };
+        try {
+            tg.CloudStorage.getItems(keys, (err, values) => finish(err ? {} : values));
+        } catch (e) { finish({}); }
+        setTimeout(() => finish({}), 2500); // не блокируем запуск, если TG не ответил
+    });
+}
+function persist(key, value) {
+    localStorage.setItem(key, value);
+    cloudSet(key, value);
+}
+async function hydrateFromCloud() {
+    const keys = [KEY_SETTINGS, KEY_DAILY, KEY_AGGREGATE];
+    const cloudValues = await cloudGetItems(keys);
+    keys.forEach(k => {
+        if (cloudValues[k]) localStorage.setItem(k, cloudValues[k]);
+    });
+}
+
 // === НАСТРОЙКИ ===
+// accentColor: null = следовать теме Telegram (авто), иначе — конкретный hex
 const DEFAULT_SETTINGS = {
     breathsPerRound: 30,
     inhaleSec: 2,
     exhaleSec: 2,
     recoveryHoldSec: 15,
-    accentColor: '#2481ff'
+    accentColor: null
 };
 let settings = { ...DEFAULT_SETTINGS };
+let pendingAccent = settings.accentColor;
 
 function loadSettings() {
     try {
-        const raw = localStorage.getItem(`wimhof_settings_${userId}`);
+        const raw = localStorage.getItem(KEY_SETTINGS);
         if (raw) settings = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
     } catch { settings = { ...DEFAULT_SETTINGS }; }
+    pendingAccent = settings.accentColor;
     applySettings();
 }
 
 function saveSettings() {
-    localStorage.setItem(`wimhof_settings_${userId}`, JSON.stringify(settings));
+    persist(KEY_SETTINGS, JSON.stringify(settings));
 }
 
 function applySettings() {
-    document.documentElement.style.setProperty('--accent-color', settings.accentColor);
+    if (settings.accentColor) {
+        document.documentElement.style.setProperty('--accent-color', settings.accentColor);
+    } else {
+        document.documentElement.style.removeProperty('--accent-color'); // авто-режим — берём из темы Telegram
+    }
+}
+
+function getAccentHex() {
+    const val = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim();
+    return val || '#2481ff';
+}
+function accentToRgba(alpha) {
+    let c = getAccentHex();
+    let r, g, b;
+    if (c.startsWith('#')) {
+        let hex = c.slice(1);
+        if (hex.length === 3) hex = hex.split('').map(ch => ch + ch).join('');
+        const num = parseInt(hex, 16);
+        r = (num >> 16) & 255; g = (num >> 8) & 255; b = num & 255;
+    } else {
+        const m = c.match(/\d+/g) || [36, 129, 255];
+        [r, g, b] = m.map(Number);
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function populateSettingsForm() {
@@ -41,10 +106,20 @@ function populateSettingsForm() {
     document.getElementById('valExhale').textContent = settings.exhaleSec.toFixed(1);
     document.getElementById('setRecovery').value = settings.recoveryHoldSec;
     document.getElementById('valRecovery').textContent = settings.recoveryHoldSec;
-    document.getElementById('setCustomColor').value = settings.accentColor;
+
+    pendingAccent = settings.accentColor;
+    document.getElementById('setCustomColor').value = settings.accentColor || getAccentHex();
     document.querySelectorAll('.swatch[data-color]').forEach(sw => {
-        sw.classList.toggle('selected', sw.dataset.color.toLowerCase() === settings.accentColor.toLowerCase());
+        const isAuto = sw.dataset.color === 'auto';
+        const selected = settings.accentColor
+            ? (!isAuto && sw.dataset.color.toLowerCase() === settings.accentColor.toLowerCase())
+            : isAuto;
+        sw.classList.toggle('selected', selected);
     });
+    document.getElementById('accentHint').textContent = settings.accentColor
+        ? 'Свой цвет'
+        : 'Следует теме Telegram';
+
     document.querySelectorAll('.styled-range').forEach(updateRangeFill);
 }
 
@@ -56,6 +131,12 @@ function updateRangeFill(input) {
     input.style.setProperty('--fill', pct + '%');
 }
 
+// Живое обновление, если пользователь сменит тему Telegram прямо во время использования
+tg?.onEvent?.('themeChanged', () => {
+    if (!settings.accentColor) document.documentElement.style.removeProperty('--accent-color');
+    updateChart();
+});
+
 // === ХАПТИКИ (работают на iOS и Android) ===
 function haptic(type = 'light') {
     if (!tg?.HapticFeedback) return;
@@ -65,6 +146,27 @@ function haptic(type = 'light') {
 function successHaptic() {
     if (!tg?.HapticFeedback) return;
     try { tg.HapticFeedback.notificationOccurred('success'); } catch {}
+}
+
+// === КОЛЬЦО-ПЕЙСЕР ВДОХА/ВЫДОХА ===
+const RING_R = 47;
+const RING_CIRC = 2 * Math.PI * RING_R;
+function ringInit() {
+    if (!el.ring) return;
+    el.ring.style.strokeDasharray = RING_CIRC.toFixed(2);
+    el.ring.style.transition = 'none';
+    el.ring.style.strokeDashoffset = RING_CIRC.toFixed(2); // пусто
+}
+// fromFraction/toFraction: 0 = пусто, 1 = кольцо нарисовано полностью
+function ringAnimate(fromFraction, toFraction, durationSec) {
+    if (!el.ring) return;
+    el.ring.style.transition = 'none';
+    el.ring.style.strokeDashoffset = (RING_CIRC * (1 - fromFraction)).toFixed(2);
+    void el.ring.getBoundingClientRect(); // форсируем reflow перед анимацией
+    requestAnimationFrame(() => {
+        el.ring.style.transition = `stroke-dashoffset ${durationSec}s linear`;
+        el.ring.style.strokeDashoffset = (RING_CIRC * (1 - toFraction)).toFixed(2);
+    });
 }
 
 // === СОСТОЯНИЕ ===
@@ -80,6 +182,8 @@ const state = {
 
 const el = {
     circle: document.getElementById('breathCircle'),
+    stage: document.getElementById('breathStage'),
+    ring: document.getElementById('ringProgress'),
     circleText: document.getElementById('circleText'),
     phase: document.getElementById('phaseText'),
     timer: document.getElementById('timer'),
@@ -88,9 +192,10 @@ const el = {
     currentRound: document.getElementById('currentRound'),
     totalRounds: document.getElementById('totalRounds')
 };
+ringInit();
 
 // === ЗАГРУЗКА ===
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Кнопки раундов — работают
     document.getElementById('decreaseRounds').addEventListener('click', () => {
         if (state.rounds.total > 1) { state.rounds.total--; updateRounds(); save(); haptic(); }
@@ -126,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('statsToday').style.display = 'block';
     document.getElementById('statsAlltime').style.display = 'none';
 
+    await hydrateFromCloud(); // подтягиваем данные из Telegram CloudStorage, если есть
     loadData();
     loadSettings();
     resetTodayIfNewDay();
@@ -153,8 +259,8 @@ function setupSettingsUI() {
         overlay.classList.add('open');
         haptic();
     });
-    closeBtn.addEventListener('click', () => overlay.classList.remove('open'));
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
+    closeBtn.addEventListener('click', () => { applySettings(); overlay.classList.remove('open'); });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) { applySettings(); overlay.classList.remove('open'); } });
 
     breathsInput.addEventListener('input', () => {
         document.getElementById('valBreaths').textContent = breathsInput.value;
@@ -176,16 +282,26 @@ function setupSettingsUI() {
     document.querySelectorAll('.swatch[data-color]').forEach(sw => {
         sw.addEventListener('click', () => {
             const color = sw.dataset.color;
-            customColorInput.value = color;
             document.querySelectorAll('.swatch[data-color]').forEach(s => s.classList.remove('selected'));
             sw.classList.add('selected');
-            document.documentElement.style.setProperty('--accent-color', color);
+            if (color === 'auto') {
+                pendingAccent = null;
+                document.documentElement.style.removeProperty('--accent-color');
+                document.getElementById('accentHint').textContent = 'Следует теме Telegram';
+            } else {
+                pendingAccent = color;
+                customColorInput.value = color;
+                document.documentElement.style.setProperty('--accent-color', color);
+                document.getElementById('accentHint').textContent = 'Свой цвет';
+            }
             haptic();
         });
     });
     customColorInput.addEventListener('input', () => {
         document.querySelectorAll('.swatch[data-color]').forEach(s => s.classList.remove('selected'));
+        pendingAccent = customColorInput.value;
         document.documentElement.style.setProperty('--accent-color', customColorInput.value);
+        document.getElementById('accentHint').textContent = 'Свой цвет';
     });
 
     saveBtn.addEventListener('click', () => {
@@ -193,9 +309,10 @@ function setupSettingsUI() {
         settings.inhaleSec = parseFloat(inhaleInput.value);
         settings.exhaleSec = parseFloat(exhaleInput.value);
         settings.recoveryHoldSec = parseInt(recoveryInput.value, 10);
-        settings.accentColor = customColorInput.value;
+        settings.accentColor = pendingAccent;
         applySettings();
         saveSettings();
+        updateChart();
         overlay.classList.remove('open');
         successHaptic();
     });
@@ -216,6 +333,7 @@ function startSession() {
     updateRounds();
     startBreathingCycle();
     haptic('heavy');
+    try { tg?.enableClosingConfirmation(); } catch {} // не даём случайно закрыть во время сессии
 }
 
 function startBreathingCycle() {
@@ -227,10 +345,12 @@ function startBreathingCycle() {
     state.rounds.breathCount++;
     el.progress.style.width = (state.rounds.breathCount / total * 100) + '%';
 
+    el.stage.classList.add('show-ring');
     el.circle.className = 'breath-circle breathing-in';
     el.circle.style.animationDuration = settings.inhaleSec + 's';
     el.circleText.textContent = `Вдох ${state.rounds.breathCount}/${total}`;
     el.phase.textContent = 'Глубокий вдох через нос';
+    ringAnimate(0, 1, settings.inhaleSec);
 
     setTimeout(() => {
         if (state.currentPhase !== 'breathing') return;
@@ -238,12 +358,14 @@ function startBreathingCycle() {
         el.circle.style.animationDuration = settings.exhaleSec + 's';
         el.circleText.textContent = `Выдох ${state.rounds.breathCount}/${total}`;
         el.phase.textContent = 'Спокойный выдох через рот';
+        ringAnimate(1, 0, settings.exhaleSec);
         setTimeout(() => { if (state.currentPhase === 'breathing') startBreathingCycle(); }, exhaleMs);
     }, inhaleMs);
 }
 
 function startHold() {
     state.currentPhase = state.rounds.current < state.rounds.total ? 'holding' : 'finalHold';
+    el.stage.classList.remove('show-ring'); // задержка — без фиксированной длительности, кольцо не показываем
     el.circle.className = 'breath-circle';
     el.circleText.textContent = 'Задержка';
     el.phase.textContent = 'Выдохните полностью и задержите дыхание';
@@ -297,11 +419,13 @@ function finishHold() {
 function recoveryPhase(next) {
     state.currentPhase = 'recovery';
     el.circleText.textContent = 'Восстановление';
+    el.stage.classList.add('show-ring');
 
     // === 1. Глубокий вдох ===
     el.phase.textContent = 'Глубокий вдох';
     el.circle.className = 'breath-circle breathing-in';
     el.circle.style.animationDuration = settings.inhaleSec + 's';
+    ringAnimate(0, 1, settings.inhaleSec);
     let breathIn = Math.max(1, Math.round(settings.inhaleSec));
     el.timer.textContent = formatTime(breathIn);
 
@@ -316,6 +440,7 @@ function recoveryPhase(next) {
             el.phase.textContent = `Задержите на ${settings.recoveryHoldSec} сек`;
             el.circle.className = 'breath-circle';
             el.circle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            ringAnimate(1, 0, settings.recoveryHoldSec);
             let hold = settings.recoveryHoldSec;
             el.timer.textContent = formatTime(hold);
 
@@ -330,6 +455,7 @@ function recoveryPhase(next) {
                     el.phase.textContent = 'Медленный выдох';
                     el.circle.className = 'breath-circle breathing-out';
                     el.circle.style.animationDuration = settings.exhaleSec + 's';
+                    ringAnimate(1, 0, settings.exhaleSec);
                     let breathOut = Math.max(1, Math.round(settings.exhaleSec));
                     el.timer.textContent = formatTime(breathOut);
 
@@ -341,6 +467,7 @@ function recoveryPhase(next) {
                             haptic();
 
                             // Возврат в исходное состояние
+                            el.stage.classList.remove('show-ring');
                             el.circle.className = 'breath-circle';
                             el.circle.style.background = '';
                             el.circle.style.animationDuration = '';
@@ -368,6 +495,7 @@ function finishSession() {
     state.currentPhase = 'idle';
     state.rounds.current = 0;
     state.rounds.breathCount = 0;
+    el.stage.classList.remove('show-ring');
     el.circle.className = 'breath-circle';
     el.circleText.textContent = 'Начать';
     el.phase.textContent = 'Сессия завершена! Отличная работа';
@@ -375,6 +503,7 @@ function finishSession() {
     el.progress.style.width = '0%';
     updateRounds();
     successHaptic();
+    try { tg?.disableClosingConfirmation(); } catch {}
     setTimeout(() => el.phase.textContent = 'Нажмите на круг, чтобы начать', 5000);
 }
 
@@ -402,7 +531,7 @@ function updateStats() {
 }
 
 function updateChart() {
-    const raw = localStorage.getItem(`wimhof_daily_${userId}`);
+    const raw = localStorage.getItem(KEY_DAILY);
     if (!raw) {
         document.querySelector('.chart-container').style.display = 'none';
         return;
@@ -440,13 +569,18 @@ function updateChart() {
 
     if (window.myChart) window.myChart.destroy();
 
+    // Один и тот же акцентный цвет, но с разной насыщенностью —
+    // палитра всегда сочетается с темой/кастомным цветом, а столбцы легко различимы
+    const bestColor = accentToRgba(0.95);
+    const avgColor = accentToRgba(0.35);
+
     window.myChart = new Chart(canvas.getContext('2d'), {
         type: 'bar',
         data: {
             labels: labels,
             datasets: [
-                { label: 'Лучшее',  data: bests, backgroundColor: '#0011ffff' },
-                { label: 'Среднее', data: avgs,  backgroundColor: '#ff0000ff' }
+                { label: 'Лучшее',  data: bests, backgroundColor: bestColor, borderRadius: 4 },
+                { label: 'Среднее', data: avgs,  backgroundColor: avgColor, borderRadius: 4 }
             ]
         },
         options: {
@@ -484,17 +618,23 @@ function checkAchievements() {
 
 function save() {
     const today = new Date().toDateString();
-    let daily = JSON.parse(localStorage.getItem(`wimhof_daily_${userId}`) || '{}');
+    let daily = JSON.parse(localStorage.getItem(KEY_DAILY) || '{}');
     daily[today] = state.stats.today.times.slice();
-    localStorage.setItem(`wimhof_daily_${userId}`, JSON.stringify(daily));
-    localStorage.setItem(`wimhof_${userId}`, JSON.stringify({
+
+    // Храним не больше 60 последних дней — этого достаточно для графика
+    // и держит запись в пределах лимита Telegram CloudStorage (4096 символов на ключ)
+    const dates = Object.keys(daily).sort((a, b) => new Date(a) - new Date(b));
+    if (dates.length > 60) dates.slice(0, dates.length - 60).forEach(d => delete daily[d]);
+
+    persist(KEY_DAILY, JSON.stringify(daily));
+    persist(KEY_AGGREGATE, JSON.stringify({
         rounds: state.rounds.total,
         allTime: state.stats.allTime
     }));
 }
 
 function loadData() {
-    const saved = localStorage.getItem(`wimhof_${userId}`);
+    const saved = localStorage.getItem(KEY_AGGREGATE);
     if (saved) {
         const d = JSON.parse(saved);
         state.rounds.total = d.rounds || 3;

@@ -48,8 +48,14 @@
             <button id="increaseRounds">+</button>
         </div>
 
-        <div class="breath-circle" id="breathCircle">
-            <div id="circleText">Начать</div>
+        <div class="breath-stage" id="breathStage">
+            <svg class="ring-svg" viewBox="0 0 100 100">
+                <circle class="ring-bg" cx="50" cy="50" r="47"></circle>
+                <circle class="ring-progress" id="ringProgress" cx="50" cy="50" r="47"></circle>
+            </svg>
+            <div class="breath-circle" id="breathCircle">
+                <div id="circleText">Начать</div>
+            </div>
         </div>
 
         <div class="info-container">
@@ -132,6 +138,9 @@
                 <div class="setting-row">
                     <div class="setting-label"><span>Цвет акцента</span></div>
                     <div class="color-swatches" id="colorSwatches">
+                        <button class="swatch auto-swatch" data-color="auto" title="Как в Telegram">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        </button>
                         <button class="swatch" data-color="#2481ff" style="background:#2481ff"></button>
                         <button class="swatch" data-color="#ff3b30" style="background:#ff3b30"></button>
                         <button class="swatch" data-color="#34c759" style="background:#34c759"></button>
@@ -143,6 +152,7 @@
                             <input type="color" id="setCustomColor" value="#2481ff">
                         </label>
                     </div>
+                    <div class="setting-hint" id="accentHint">Следует теме Telegram</div>
                 </div>
             </div>
 
