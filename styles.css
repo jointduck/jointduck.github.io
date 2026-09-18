@@ -53,7 +53,10 @@ body {
     width: 260px; height: 260px; margin: 40px auto;
 }
 .ring-svg {
-    position: absolute; inset: 0; width: 100%; height: 100%;
+    /* Кольцо — дочерний элемент круга, поэтому растёт/сжимается вместе с ним
+       (transform круга применяется ко всему поддереву) и никогда не перекрывается */
+    position: absolute; inset: -14px;
+    width: calc(100% + 28px); height: calc(100% + 28px);
     transform: rotate(-90deg);
     pointer-events: none;
 }
@@ -66,7 +69,7 @@ body {
 .breath-stage.show-ring .ring-progress { opacity: 0.9; }
 
 .breath-circle {
-    position: absolute; inset: 16px; border-radius: 50%;
+    position: absolute; inset: 30px; border-radius: 50%;
     background: var(--accent-color);
     color: #fff; display: flex; align-items: center; justify-content: center;
     cursor: pointer; font-size: 34px; font-weight: 600;
@@ -77,8 +80,8 @@ body {
 .breath-circle.breathing-in { animation: breathIn 2s ease-in-out; }
 .breath-circle.breathing-out { animation: breathOut 2s ease-in-out; background: #ff3b30; box-shadow: 0 12px 40px rgba(255,59,48,0.5); }
 
-@keyframes breathIn { from { transform: scale(1); } to { transform: scale(1.15); } }
-@keyframes breathOut { from { transform: scale(1.15); } to { transform: scale(1); } }
+@keyframes breathIn { from { transform: scale(1); } to { transform: scale(1.12); } }
+@keyframes breathOut { from { transform: scale(1.12); } to { transform: scale(1); } }
 
 #phaseText { font-size: 22px; text-align: center; min-height: 60px; margin: 20px 0; line-height: 1.4; }
 #timer { font-size: 64px; font-weight: bold; text-align: center; letter-spacing: -2px; }
